@@ -48,6 +48,11 @@ reference part by part from side-by-side frames -- Rusty's bar is the exterior e
 as the reference's, four doors and the chest the only differences -- with the
 protocol's inside-out lighting fixed on the way (Vanilla Wheels 1.3.1). Rusty's friend
 made a pass in Blockbench too (fenders down onto the tyres, angled arch ends, a chest
-modelled in the bed), all of which the rebuilt model already has. Next: the tuning
-session -- top speed, drift, damage, the dial size and the seat position are numbers to
-watch, not to plan.
+modelled in the bed), all of which the rebuilt model already has. 1.3.0 (2026-09-10, unreleased, awaiting Rusty's look): the last rounds against the
+reference -- the A-frame's second leg from the roof's corner, the deep nose over a bumper
+that protrudes past the fenders, the reference's grille, hook lamps, winch and marker
+lamps at their sizes, the factory colour (Vanilla Wheels 1.4.0). His friend's second
+pass rebuilt the wheels as twelve tread cubes on a flat rim plate; the sixteen-facet
+tyre with the painted lip, dish and capped hub is the closer match to the reference's
+wheel and stays. Next: the tuning session -- top speed, drift, damage, the dial size
+and the seat position are numbers to watch, not to plan.

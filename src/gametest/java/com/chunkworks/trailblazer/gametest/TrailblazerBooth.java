@@ -254,7 +254,7 @@ public final class TrailblazerBooth {
                 sp.getAbilities().flying = true;
                 sp.onUpdateAbilities();
                 // The reference's own view: front-left quarter, low, at a modeller's narrow field of view.
-                sp.teleportTo(level, v.getX() + 9.6, y + 6.3, v.getZ() - 6.7, 55.0f, 24.0f);
+                sp.teleportTo(level, v.getX() + 8.6, y + 5.6, v.getZ() - 5.1, 59.0f, 25.0f);
             }
         })));
         s.add(new Step(t += 2, () -> mc.options.fov().set(45)));

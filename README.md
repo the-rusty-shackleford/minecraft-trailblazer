@@ -63,9 +63,10 @@ face is something (the grille's slots, the lamps' slats, the bonnet's vents, the
 seams, the tail lights, the glass nearly clear with the reference's white corner
 brackets), while the tread, the rims and the dials are painted by where each texel is
 in the world, so a turned slab of a tyre gets its share of the pattern. Body faces are
-cool greys the dye multiplies into, a shade more blue than red, because light-blue dye
-lifted toward white still lands short of the reference's blue and a swatch can only
-take away. Selectors in the profile name folders and elements (`body`, `lenses`,
+greys the paint multiplies into; the paint is the profile's factory colour, the
+reference's own blue as the shaders render it, found by measuring booth frames against
+the image, since light-blue dye lifted toward white lands short of it and a swatch can
+only take away. A dye repaints it as any vehicle. Selectors in the profile name folders and elements (`body`, `lenses`,
 `windshield`, `needle_speed`), never materials.
 
 Two conventions bit and are written down in the script: Blockbench's frame is the

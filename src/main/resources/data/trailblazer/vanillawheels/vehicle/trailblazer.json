@@ -5,7 +5,7 @@
   "handedness": "right",
   "body": {
     "width": 2.75,
-    "length": 7.8,
+    "length": 8.0,
     "height": 3.7,
     "parts": [
       {
@@ -60,7 +60,7 @@
     }
   ],
   "wheels": {
-    "radius": 17.0,
+    "radius": 16.5,
     "positions": [
       {
         "forward": 36,
@@ -190,7 +190,8 @@
     "part": {
       "group": "body"
     },
-    "default": "light_blue"
+    "default": "light_blue",
+    "factory": "#58acff"
   },
   "glass": {
     "group": "windshield"
