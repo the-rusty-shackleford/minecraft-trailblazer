@@ -1,0 +1,39 @@
+# No Java: a vehicle for Vanilla Wheels is a datapack entry, a mesh and a texture.
+modLoader="lowcodefml"
+loaderVersion="${loader_version_range}"
+license="${mod_license}"
+issueTrackerURL="https://github.com/the-rusty-shackleford/minecraft-trailblazer/issues"
+
+[[mods]]
+modId="${mod_id}"
+version="${mod_version}"
+displayName="${mod_name}"
+authors="Rusty Shackleford, nfx"
+description='''
+The Trailblazer: a four-door pickup for Vanilla Wheels. Four seats, a
+double-wide chest in the bed, a dash with a speedometer and a fuel gauge,
+headlights, a horn, a radio, a hitch for a trailer, and steel enough to
+make it worth building.
+'''
+
+[[dependencies.${mod_id}]]
+    modId="neoforge"
+    type="required"
+    versionRange="[${neo_version},)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="minecraft"
+    type="required"
+    versionRange="${minecraft_version_range}"
+    ordering="NONE"
+    side="BOTH"
+
+# The protocol, nested in this jar.
+[[dependencies.${mod_id}]]
+    modId="vanillawheels"
+    type="required"
+    versionRange="[1.2.1,2.0)"
+    ordering="AFTER"
+    side="BOTH"

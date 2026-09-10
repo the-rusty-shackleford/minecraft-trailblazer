@@ -1,0 +1,24 @@
+# The gametests and the photo booth, as a mod of their own; never shipped.
+modLoader="javafml"
+loaderVersion="[1,)"
+license="AGPL-3.0-or-later"
+
+[[mods]]
+modId="trailblazer_gametest"
+version="1.0.0"
+displayName="Trailblazer gametests"
+description='''The Trailblazer's gametests and photo booth.'''
+
+[[dependencies.trailblazer_gametest]]
+    modId="trailblazer"
+    type="required"
+    versionRange="[1.0,)"
+    ordering="AFTER"
+    side="BOTH"
+
+[[dependencies.trailblazer_gametest]]
+    modId="vanillawheels"
+    type="required"
+    versionRange="[1.2,)"
+    ordering="AFTER"
+    side="BOTH"

@@ -1,0 +1,202 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+    id 'net.neoforged.moddev' version '2.0.144'
+    id 'idea'
+}
+
+version = mod_version
+group = mod_group_id
+
+base {
+    archivesName = mod_id
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+// Vanilla Wheels, and what it nests, come from Maven Local until a real
+// repository exists (`./gradlew publishToMavenLocal` in its repo).
+repositories {
+    mavenCentral()
+    mavenLocal()
+}
+
+// The vehicle is data and assets: `main` has no Java at all and loads as
+// a lowcodefml mod. `gametest` is a mod of its own, with the tests and the
+// photo booth, and is never shipped.
+sourceSets {
+    gametest
+}
+
+var copyGameTestStructures = tasks.register("copyGameTestStructures", Copy) {
+    from "devtools/gameteststructures"
+    into "run/gameteststructures"
+}
+
+var prepareBooth = tasks.register("prepareBooth") {
+    def booth = layout.projectDirectory.dir('run/booth').asFile
+    outputs.upToDateWhen { false }
+    doLast {
+        new File(booth, 'screenshots').deleteDir()
+        new File(booth, 'saves').deleteDir()
+        // A fresh game directory opens on the accessibility onboarding screen,
+        // which the booth would wait behind forever; a seeded options file
+        // takes the client straight to the title screen.
+        def options = new File(booth, 'options.txt')
+        if (!options.exists()) {
+            booth.mkdirs()
+            options.text = "onboardAccessibility:false\nnarrator:0\n"
+        }
+    }
+}
+
+neoForge {
+    version = project.neo_version
+
+    parchment {
+        mappingsVersion = project.parchment_mappings_version
+        minecraftVersion = project.parchment_minecraft_version
+    }
+
+    runs {
+        client {
+            client()
+        }
+        server {
+            server()
+            programArgument '--nogui'
+        }
+        gameTestServer {
+            type = "gameTestServer"
+            sourceSet = sourceSets.gametest
+            systemProperty 'neoforge.enabledGameTestNamespaces', mod_id
+            taskBefore copyGameTestStructures
+        }
+        photoBooth {
+            client()
+            sourceSet = sourceSets.gametest
+            gameDirectory = file('run/booth')
+            systemProperty "${mod_id}.photobooth", 'true'
+            taskBefore prepareBooth
+        }
+        configureEach {
+            logLevel = org.slf4j.event.Level.DEBUG
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+        "${mod_id}_gametest" {
+            sourceSet(sourceSets.gametest)
+        }
+    }
+
+    addModdingDependenciesTo(sourceSets.gametest)
+}
+
+neoForge.runs.matching { it.name != 'gameTestServer' && it.name != 'photoBooth' }.configureEach {
+    loadedMods = neoForge.mods.matching { it.name != "${mod_id}_gametest" }
+}
+
+configurations {
+    gametestImplementation.extendsFrom implementation
+    gametestRuntimeOnly.extendsFrom runtimeOnly
+}
+
+dependencies {
+    // The protocol: everything this vehicle does. Nested Jar-in-Jar, with
+    // what it nests in turn (Luminance, Metals and Materials); the loader
+    // keeps one copy of each across the pack.
+    jarJar(implementation("com.chunkworks.vanillawheels:vanillawheels")) {
+        version {
+            strictly "[1.2,2.0)"
+            prefer "1.2.1"
+        }
+    }
+
+    gametestImplementation sourceSets.main.output
+}
+
+tasks.named('runGameTestServer') { task ->
+    def logFile = layout.projectDirectory.file('run/logs/latest.log').asFile
+    task.doLast {
+        def text = logFile.exists() ? logFile.text : ''
+        if (text =~ /Missing or unsupported mandatory|Mod loading has failed/) {
+            throw new GradleException("gametest: the loader refused a mod; see ${logFile}")
+        }
+        def passed = (text =~ /All (\d+) required tests passed/)
+        if (!passed.find()) {
+            throw new GradleException("gametest: no 'required tests passed' line in ${logFile}")
+        }
+        task.logger.lifecycle("gametest: all ${passed.group(1)} required tests passed")
+    }
+}
+if (!project.hasProperty('skipGameTests')) {
+    tasks.named('check') {
+        dependsOn 'runGameTestServer'
+    }
+}
+
+tasks.named('runPhotoBooth') { task ->
+    def logFile = layout.projectDirectory.file('run/booth/logs/latest.log').asFile
+    task.doLast {
+        def text = logFile.exists() ? logFile.text : ''
+        if (text =~ /Missing or unsupported mandatory|Mod loading has failed/) {
+            throw new GradleException("booth: the loader refused a mod; see ${logFile}")
+        }
+        def failures = text.readLines().findAll { it.contains('booth: FAIL') }
+        if (!failures.isEmpty()) {
+            throw new GradleException("booth: ${failures.size()} failed check(s):\n" + failures.join('\n'))
+        }
+        if (!(text =~ /booth: PASS/)) {
+            throw new GradleException("booth: no verdict in ${logFile} -- the booth never ran")
+        }
+        task.logger.lifecycle("booth: " + (text =~ /booth: PASS.*/)[0])
+    }
+}
+if (!project.hasProperty('skipBooth') && !project.hasProperty('skipGameTests')) {
+    tasks.named('runPhotoBooth') { mustRunAfter 'runGameTestServer' }
+    tasks.named('check') { dependsOn 'runPhotoBooth' }
+}
+
+// The Trailer's gametests tow this truck; they take it from Maven Local
+// (`./gradlew publishToMavenLocal`).
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
+    }
+}
+
+var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
+    var replaceProperties = [
+            minecraft_version      : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            neo_version            : neo_version,
+            loader_version_range   : loader_version_range,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_license            : mod_license,
+            mod_version            : mod_version,
+    ]
+    inputs.properties replaceProperties
+    expand replaceProperties
+    from "src/main/templates"
+    into "build/generated/sources/modMetadata"
+}
+sourceSets.main.resources.srcDir generateModMetadata
+neoForge.ideSyncTask generateModMetadata
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+idea {
+    module {
+        downloadSources = true
+        downloadJavadoc = true
+    }
+}

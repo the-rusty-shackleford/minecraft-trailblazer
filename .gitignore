@@ -1,0 +1,16 @@
+# --- Gradle / build output ---------------------------------------------
+build/
+.gradle/
+out/
+
+# --- Dev run directory --------------------------------------------------
+# `runClient` / `runServer` / the gametest server write a whole Minecraft
+# installation here.
+run/
+
+# --- Editors / OS -------------------------------------------------------
+.idea/
+*.iml
+.vscode/
+.DS_Store
+*.swp

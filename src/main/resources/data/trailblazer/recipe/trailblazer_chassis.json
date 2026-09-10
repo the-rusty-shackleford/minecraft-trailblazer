@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "BBB",
+    "BBB",
+    "BBB"
+  ],
+  "key": {
+    "B": {
+      "tag": "c:storage_blocks/steel"
+    }
+  },
+  "result": {
+    "id": "vanillawheels:chassis",
+    "count": 1,
+    "components": {
+      "vanillawheels:vehicle": "trailblazer:trailblazer"
+    }
+  }
+}
