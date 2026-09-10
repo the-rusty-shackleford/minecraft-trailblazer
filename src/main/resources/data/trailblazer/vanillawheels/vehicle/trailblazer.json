@@ -5,14 +5,14 @@
   "handedness": "right",
   "body": {
     "width": 2.75,
-    "length": 8.0,
-    "height": 3.7,
+    "length": 6.62,
+    "height": 3.94,
     "parts": [
       {
         "at": [
           0,
           10,
-          38
+          30
         ],
         "width": 3.4,
         "height": 1.5
@@ -21,7 +21,7 @@
         "at": [
           0,
           10,
-          -45
+          -30
         ],
         "width": 3.4,
         "height": 1.5
@@ -33,7 +33,7 @@
       "at": [
         8,
         30,
-        1
+        1.0
       ],
       "driver": true
     },
@@ -41,44 +41,48 @@
       "at": [
         -8,
         30,
-        1
+        1.0
       ]
     },
     {
       "at": [
         8,
         30,
-        -29
+        -18.0
       ]
     },
     {
       "at": [
         -8,
         30,
-        -29
+        -18.0
       ]
     }
   ],
   "wheels": {
-    "radius": 16.0,
+    "radius": 12.5,
     "positions": [
       {
-        "forward": 36,
-        "right": -22,
+        "forward": 30,
+        "right": 24,
+        "up": 15,
         "steers": true
       },
       {
-        "forward": 36,
-        "right": 22,
+        "forward": 30,
+        "right": -24,
+        "up": 15,
         "steers": true
       },
       {
-        "forward": -45,
-        "right": -22
+        "forward": -30,
+        "right": 24,
+        "up": 15
       },
       {
-        "forward": -45,
-        "right": 22
+        "forward": -30,
+        "right": -24,
+        "up": 15
       }
     ]
   },
@@ -104,13 +108,13 @@
   "storage": {
     "rows": 6,
     "region": {
-      "z_max": -38
+      "z_max": -25
     },
     "chest": {
       "at": [
         0,
         16,
-        -52
+        -32.0
       ],
       "yaw": 180
     }
@@ -122,9 +126,9 @@
         "group": "needle_speed"
       },
       "pivot": [
-        8.0,
-        41.0,
-        9.6
+        7.5,
+        39.5,
+        9.25
       ],
       "axis": [
         0,
@@ -141,8 +145,8 @@
       },
       "pivot": [
         12.8,
-        41.0,
-        9.6
+        40.0,
+        9.25
       ],
       "axis": [
         0,
@@ -157,13 +161,13 @@
     "at": [
       [
         15.5,
-        33.5,
-        51.5
+        32.0,
+        47.5
       ],
       [
         -15.5,
-        33.5,
-        51.5
+        32.0,
+        47.5
       ]
     ],
     "part": {
@@ -182,8 +186,8 @@
   "hitch": {
     "rear": [
       0,
-      21,
-      -68
+      21.0,
+      -52.0
     ]
   },
   "paint": {
@@ -191,7 +195,7 @@
       "group": "body"
     },
     "default": "light_blue",
-    "factory": "#58acff"
+    "factory": "#6bc6e3"
   },
   "glass": {
     "group": "windshield"

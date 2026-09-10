@@ -80,7 +80,7 @@ class Noise:
 TONES = {
     "body": ((226, 226, 226), (255, 255, 255), (196, 196, 196)),
     "rubber": ((36, 38, 44), (58, 60, 66), (24, 26, 30)),
-    "tyre": ((40, 42, 46), (104, 106, 112), (26, 28, 30)),
+    "tyre": ((34, 36, 42), (98, 100, 108), (22, 24, 28)),
     "metal": ((174, 178, 186), (206, 210, 218), (138, 142, 150)),
     "metal_dark": ((92, 96, 104), (110, 114, 122), (72, 76, 84)),
     "seat": ((30, 30, 34), (44, 44, 48), (20, 20, 22)),
@@ -91,11 +91,11 @@ TONES = {
     "glass": ((196, 228, 242), (232, 246, 252), (172, 214, 234)),
     "needle": ((214, 48, 40), (236, 70, 60), (180, 34, 30)),
     "tail": ((196, 36, 30), (224, 60, 50), (160, 26, 22)),
-    "hub": ((150, 152, 158), (174, 176, 182), (124, 126, 132)),
+    "hub": ((150, 148, 142), (168, 166, 160), (58, 60, 66)),
 }
 ALPHA = {"glass": 90}
 GLASS_PANE, GLASS_EDGE, GLASS_STREAK = 50, 110, 190
-DETAIL = {"dial": 4, "lens": 2, "rim": 2, "hubcap": 2}
+DETAIL = {"dial": 4, "lens": 2, "knobs": 2, "wall": 2, "dish": 2}
 
 
 # ---------------------------------------------------------------- geometry
@@ -343,22 +343,29 @@ def dial(x, y, z, radius, kind):
     cube(f"needle_{kind}", f"dash/needle_{kind}", x - 0.25, y - 0.3, z - 0.9, x + 0.25, y + radius - 0.4, z - 0.6, "needle")
 
 
+KNOBS = 12
+HUB_R = 8.2
+
+
 def wheel():
+    """
+    The reference's wheel, the way Rusty's friend built it: the tread is
+    twelve blocks round the axle, each a box from the hub out to the tyre's
+    radius so the tyre's outline is knobby and the blocks catch the light,
+    its outer face a grid of six bold treads with grooves between; the rim
+    a flat plate recessed inside the sidewall, a muted steel dish with five
+    lug nuts.
+    """
     CUBES.clear()
-    # The tyre: eight slabs through the axle, each turned 22.5 degrees on from the last, whose long faces are the
-    # sixteen facets of the tread; their widths shrink by a hair so their sidewalls do not fight.
-    r = WHEEL_R
-    facet = 2 * r * math.tan(math.pi / 16)
-    for k in range(8):
-        hw = WHEEL_W / 2 - 0.05 * k
-        cube(f"tyre_{k}", "tyre", -hw, -r * math.cos(math.pi / 16), -facet / 2, hw, r * math.cos(math.pi / 16), facet / 2, "tyre",
-             rotation=(22.5 * k, 0, 0), origin=(0, 0, 0), decals={"top": "tread", "bottom": "tread", "left": "rim", "right": "rim"})
-    hr = 8.0
-    hfacet = 2 * hr * math.tan(math.pi / 8)
-    for k in range(4):
-        hw = WHEEL_W / 2 + 0.4 - 0.05 * k
-        cube(f"hub_{k}", "hub", -hw, -hr * math.cos(math.pi / 8), -hfacet / 2, hw, hr * math.cos(math.pi / 8), hfacet / 2, "metal_dark",
-             rotation=(45 * k, 0, 0), origin=(0, 0, 0), decals={"left": "hubcap", "right": "hubcap"})
+    outer = WHEEL_R
+    inner = WHEEL_R * 0.48
+    seg = 2 * outer * math.tan(math.pi / KNOBS)
+    for k in range(KNOBS):
+        hw = WHEEL_W / 2 - 0.03 * k
+        cube(f"tread_{k}", "tyre", -hw, inner, -seg / 2, hw, outer, seg / 2, "tyre", rotation=(360.0 * k / KNOBS, 0, 0), origin=(0, 0, 0),
+             decals={"top": "knobs", "left": "wall", "right": "wall"})
+    cube("rim", "hub", -WHEEL_W / 2 + 2.0, -HUB_R, -HUB_R, WHEEL_W / 2 - 2.0, HUB_R, HUB_R, "hub", decals={"left": "dish", "right": "dish"},
+         faces={"top": "metal_dark", "bottom": "metal_dark", "front": "metal_dark", "back": "metal_dark"})
     return list(CUBES)
 
 
@@ -539,51 +546,48 @@ def paint(face, w, h, seed):
                         if abs(ang - (-120 + k * 30)) < 7:
                             c = (236, 232, 200)
                 put(px, w, h, i, j, c)
-    elif decal == "tread":
-        # by angle round the axle: a block in the middle of each facet in two rows either side of a centre groove,
-        # the rows staggered facet by facet, the shoulders plain
-        for j in range(h):
-            for i in range(w):
-                p = sub(world(i, j), face.cube.origin)
-                whole = math.degrees(math.atan2(p[2], p[1])) % 360
-                k = int(whole // 22.5)
-                ang = whole % 22.5
-                row = 1 if p[0] > 0 else -1
-                shift = 1.5 if (k + (row > 0)) % 2 == 0 else 4.0
-                block = shift < ang < shift + 16.0 and 1.0 < abs(p[0]) < 4.9
-                put(px, w, h, i, j, light if block else dark)
-    elif decal == "rim":
-        # by radius from the axle: the sidewall, the tread's blocks wrapping a texel onto the shoulder, a light
-        # lip, a dark dish with six light spokes; the hub's cubes take over inside
+    elif decal == "knobs":
+        # the outer face of one tread block: three treads along the tyre by two across, a texel of groove between
+        # and round them, at two texels a pixel
+        cols, rows = 3, 2
+        gx = (w - (cols + 1)) / cols
+        gy = (h - (rows + 1)) / rows
+        for y in range(h):
+            for x in range(w):
+                cx = (x - 1) % (gx + 1) if x >= 1 else -1
+                cy = (y - 1) % (gy + 1) if y >= 1 else -1
+                tread = 0 <= cx < gx and 0 <= cy < gy and x < w - 1 and y < h - 1
+                put(px, w, h, x, y, light if tread else dark)
+    elif decal == "wall":
+        # a tread block's sidewall: the reference's blocks continue over the sidewall to the rim, two by two per
+        # block with grooves between, a shade darker than the tread's
+        cols, rows = 2, 2
+        gx = (w - (cols + 1)) / cols
+        gy = (h - (rows + 1)) / rows
+        for y in range(h):
+            for x in range(w):
+                cx = (x - 1) % (gx + 1) if x >= 1 else -1
+                cy = (y - 1) % (gy + 1) if y >= 1 else -1
+                block = 0 <= cx < gx and 0 <= cy < gy and x < w - 1 and y < h - 1
+                put(px, w, h, x, y, (76, 78, 86) if block else dark)
+    elif decal == "dish":
+        # the rim plate's face: the reference's steel dish, muted, five lug nuts and a hub as dark squares; what
+        # lies outside the sidewall's hole is dark and never seen
         hub = TONES["hub"]
         for j in range(h):
             for i in range(w):
                 p = sub(world(i, j), face.cube.origin)
                 d = math.hypot(p[1], p[2])
-                ang = math.degrees(math.atan2(p[2], p[1]))
-                if d > WHEEL_R - 0.7:
-                    c = dark
-                elif d > WHEEL_R - 2.2:
-                    c = light if int(((ang + 180) % 360) // 11.25) % 2 == 0 else dark
-                elif d > 11.0:
-                    c = base
-                elif d > 9.8:
-                    c = hub[0]
-                else:
-                    c = (58, 60, 66)
-                    for k in range(6):
-                        if abs(((ang - k * 60 + 180) % 360) - 180) < 8:
-                            c = hub[0]
+                c = hub[0] if d < WHEEL_R * 0.48 else hub[2]
+                if max(abs(p[1]), abs(p[2])) < 1.2:
+                    c = hub[2]
+                for k in range(5):
+                    a = math.radians(90 + k * 72)
+                    if max(abs(p[1] - 4.4 * math.cos(a)), abs(p[2] - 4.4 * math.sin(a))) < 1.0:
+                        c = hub[2]
+                if c == hub[0] and (i // 3 + j // 3) % 4 == 0:
+                    c = hub[1]
                 put(px, w, h, i, j, c)
-    elif decal == "hubcap":
-        # a light ring, a dark ring, a light cap with a dark square at its centre
-        hub = TONES["hub"]
-        for j in range(h):
-            for i in range(w):
-                p = sub(world(i, j), face.cube.origin)
-                d = math.hypot(p[1], p[2])
-                sq = max(abs(p[1]), abs(p[2]))
-                put(px, w, h, i, j, (40, 42, 46) if sq < 1.5 else hub[1] if d < 3.6 else (56, 58, 64) if d < 5.8 else hub[0])
     return px
 
 

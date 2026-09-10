@@ -290,7 +290,9 @@ public final class TrailblazerBooth {
             sp.onUpdateAbilities();
             sp.teleportTo(level, X, y + 4.5, Z, 0.0f, 32.0f);
         })));
-        s.add(new Step(t += SETTLE, () -> {
+        // Twice the settle: the teleport, the new truck and the night's relit chunks all have to land first, and
+        // under llvmpipe one settle has been read before the camera arrived.
+        s.add(new Step(t += SETTLE * 2, () -> {
             groundDark = brightness(mc);
             shoot(mc, "booth-night-lamps-off");
             verdict("at night with the lamps off the ground ahead is dark", () -> groundDark < 60 ? null : "brightness " + groundDark);
