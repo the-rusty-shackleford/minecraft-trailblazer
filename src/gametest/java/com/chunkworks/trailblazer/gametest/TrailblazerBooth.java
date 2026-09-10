@@ -25,6 +25,7 @@ import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.IntPredicate;
 import java.util.function.Supplier;
+import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.screens.TitleScreen;
@@ -70,7 +71,7 @@ public final class TrailblazerBooth {
     private static final boolean ACTIVE = Boolean.getBoolean("trailblazer.photobooth");
     private static final ResourceLocation TRUCK = ResourceLocation.fromNamespaceAndPath("trailblazer", "trailblazer");
 
-    private enum Phase { TITLE, LOADING, PLACING, RUNNING, DONE }
+    private enum Phase { TITLE, LOADING, PLACING, SETTLING, RUNNING, DONE }
 
     private record Step(int at, Runnable action) {}
 
@@ -80,7 +81,9 @@ public final class TrailblazerBooth {
     /** Where the player stands; the car sits AHEAD blocks south of it. */
     private static final double X = 0.5;
     private static final double Z = 0.5;
-    private static final double AHEAD = 9.0;
+    private static final double AHEAD = 6.5;
+    /** The night truck stands further out, nose away, so its beams pool in the sampled rows. */
+    private static final double NIGHT_AHEAD = 10.0;
 
     private static Phase phase = Phase.TITLE;
     private static int tick = 0;
@@ -116,6 +119,14 @@ public final class TrailblazerBooth {
                 // The count starts once the client has the player on the mark and the car in view:
                 // on a slow renderer the teleport and the spawn land some frames after they are sent.
                 if (mc.player != null && mc.player.onGround() && mc.player.distanceToSqr(X, mc.player.getY(), Z) < 0.25 && carId(mc) != -1) {
+                    phase = Phase.SETTLING;
+                    tick = 0;
+                }
+            }
+            case SETTLING -> {
+                // A slow renderer may still be meshing the world around the camera: wait until the
+                // truck's paint is actually in the frame, up to twenty seconds.
+                if (tick++ % 10 == 0 && (count(mc, TrailblazerBooth::lightBlue) > 200 || tick > 400)) {
                     phase = Phase.RUNNING;
                     tick = 0;
                 }
@@ -209,23 +220,63 @@ public final class TrailblazerBooth {
         s.add(new Step(t += 2, () -> mc.options.keyUp.setDown(true)));
         s.add(new Step(t += 45, () -> look(mc, 15.0f)));
         s.add(new Step(t += 6, () -> {
-            int needles = countIn(mc, TrailblazerBooth::red, 0.0, 0.6);
+            int needles = countIn(mc, TrailblazerBooth::red, 0.0, 1.0);
             double speed = mc.player != null && mc.player.getVehicle() instanceof Vehicle v ? v.speed() : -1;
             shoot(mc, "booth-dash");
-            mc.options.keyUp.setDown(false);
             verdict("at speed on half a tank the dash shows its needles", () -> needles > 40 ? null : "needle pixels " + needles);
             verdict("the truck is moving under the driver", () -> speed > 0.4 ? null : "speed " + speed);
         }));
-        // Out, up and behind the truck for the night shots.
+        // Still driving: the view from behind, as a player in third person sees their own truck, then from the front.
+        s.add(new Step(t += 2, () -> {
+            look(mc, 12.0f);
+            mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
+        }));
+        s.add(new Step(t += 15, () -> shoot(mc, "booth-third-person-back")));
+        s.add(new Step(t += 2, () -> mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT)));
+        s.add(new Step(t += 15, () -> {
+            shoot(mc, "booth-third-person-front");
+            mc.options.keyUp.setDown(false);
+            mc.options.setCameraType(CameraType.FIRST_PERSON);
+        }));
+        // Out; the driven truck rolls on, so a fresh one stands for the exterior shots: the front-left
+        // quarter from above, the reference picture's angle, then the rear quarter for the bed.
         s.add(new Step(t += 2, () -> onServer(mc, sp -> {
             sp.stopRiding();
+            ServerLevel level = sp.serverLevel();
+            double y = level.getMinBuildHeight() + 5;
+            if (level.getEntity(car) instanceof Vehicle old) {
+                old.discard();
+            }
+            Vehicle v = Vehicle.create(level, TRUCK, new Vec3(X, y, Z + AHEAD), -90.0f);
+            if (v != null) {
+                level.addFreshEntity(v);
+                car = v.getUUID();
+                sp.getAbilities().flying = true;
+                sp.onUpdateAbilities();
+                sp.teleportTo(level, v.getX() + 4.2, y + 3.2, v.getZ() - 5.0, 40.0f, 28.0f);
+            }
+        })));
+        s.add(new Step(t += SETTLE / 2, () -> shoot(mc, "booth-three-quarter")));
+        // Round to the rear quarter for the bed and its chest.
+        s.add(new Step(t += 2, () -> onServer(mc, sp -> {
+            ServerLevel level = sp.serverLevel();
+            double y = level.getMinBuildHeight() + 5;
+            if (level.getEntity(car) instanceof Vehicle v) {
+                sp.getAbilities().flying = false;
+                sp.onUpdateAbilities();
+                sp.teleportTo(level, v.getX() - 5.5, y + 3.5, v.getZ() + 5.5, -135.0f, 25.0f);
+            }
+        })));
+        s.add(new Step(t += SETTLE / 2, () -> shoot(mc, "booth-rear-quarter")));
+        // Up and behind the truck for the night shots.
+        s.add(new Step(t += 2, () -> onServer(mc, sp -> {
             ServerLevel level = sp.serverLevel();
             level.setDayTime(18000L);
             double y = level.getMinBuildHeight() + 5;
             if (level.getEntity(car) instanceof Vehicle old) {
                 old.discard();
             }
-            Vehicle v = Vehicle.create(level, TRUCK, new Vec3(X, y, Z + AHEAD + 1.0), 0.0f);
+            Vehicle v = Vehicle.create(level, TRUCK, new Vec3(X, y, Z + NIGHT_AHEAD), 0.0f);
             if (v != null) {
                 level.addFreshEntity(v);
                 car = v.getUUID();
@@ -249,7 +300,7 @@ public final class TrailblazerBooth {
         s.add(new Step(t += 2, () -> onServer(mc, sp -> {
             ServerLevel level = sp.serverLevel();
             double y = level.getMinBuildHeight() + 5;
-            sp.teleportTo(level, X, y + 0.5, Z + AHEAD + 1.0 + 8.0, 180.0f, 6.0f);
+            sp.teleportTo(level, X, y + 0.5, Z + NIGHT_AHEAD + 8.0, 180.0f, 6.0f);
         })));
         s.add(new Step(t += SETTLE, () -> {
             int lamps = count(mc, TrailblazerBooth::lampGlow);
@@ -289,13 +340,14 @@ public final class TrailblazerBooth {
     // --- reading the frame -----------------------------------------------
 
     /**
-     * The body swatch (grey, noised) under light-blue dye, about (55, 168,
-     * 205): blue well above red and green, red low -- not the glass, whose
-     * blue and green sit closer, and not the sky, whose red is far higher.
+     * The body swatch (grey, noised) under light-blue dye lifted a quarter
+     * toward white, about (100, 172, 188) under the shaders, (88, 152, 176)
+     * in shade: blue and green well above red, red low -- not the sky, whose
+     * red is far higher, and not the grass, whose green leads its blue.
      */
     private static boolean lightBlue(int rgb) {
         int r = rgb >> 16 & 0xFF, g = rgb >> 8 & 0xFF, b = rgb & 0xFF;
-        return r < 90 && b > r + 50 && g > r + 20 && b > g + 25 && b > 90;
+        return r < 130 && g > r + 40 && b > r + 60 && b > 140;
     }
 
     /** The same swatch under red dye, on a lit or a shaded face; not the hazard stripe's yellow. */
@@ -304,10 +356,10 @@ public final class TrailblazerBooth {
         return r > 80 && g < 110 && r > g + 40 && r > b + 40;
     }
 
-    /** The lamp swatch (the bundle's gauge cream, 235, 235, 224) at full brightness: a near-white, which nothing else in a night frame is. */
+    /** The lens swatch (a warm cream) drawn full bright: far lighter than anything else the night camera sees, shaders included. */
     private static boolean lampGlow(int rgb) {
         int r = rgb >> 16 & 0xFF, g = rgb >> 8 & 0xFF, b = rgb & 0xFF;
-        return r > 200 && g > 200 && b > 180;
+        return r > 150 && g > 150 && b > 110;
     }
 
     /**

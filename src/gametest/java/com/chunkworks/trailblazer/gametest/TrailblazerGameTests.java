@@ -97,7 +97,7 @@ public final class TrailblazerGameTests {
         helper.assertTrue(t.hitch().rear().isPresent(), "a hitch");
         helper.assertTrue(t.radio().isPresent(), "a radio");
         helper.assertTrue(t.headlights().isPresent(), "headlights");
-        helper.assertTrue(t.handedness() == VehicleProfile.Handedness.LEFT, "the bundle is left-handed");
+        helper.assertTrue(t.handedness() == VehicleProfile.Handedness.RIGHT, "a Blockbench project is in the game's frame");
         Vehicle v = truck(helper, 7.5, 7.5);
         helper.assertTrue(v.getBbWidth() > 2.7 && v.getBbWidth() < 2.8, "2.75 wide: " + v.getBbWidth());
         helper.assertTrue(v.getName().getString().equals("Trailblazer"), "named: " + v.getName().getString());
@@ -117,10 +117,17 @@ public final class TrailblazerGameTests {
         double floorY = helper.absoluteVec(new Vec3(0, FLOOR, 0)).y;
         v.setScriptedInput(GAS);
         helper.runAtTickTime(40, () -> helper.assertTrue(v.speed() > 0.3, "up to speed: " + v.speed()));
-        helper.runAtTickTime(140, () -> {
+        // Brake once it is up, so a truck this long comes to rest on the shelf with all four wheels on it
+        // rather than running off the runway's end.
+        helper.runAtTickTime(65, () -> {
+            helper.assertTrue(v.getX() > helper.absoluteVec(new Vec3(28, 0, 0)).x, "up the step by now: " + (v.getX() - helper.absoluteVec(new Vec3(0, 0, 0)).x));
+            v.setScriptedInput(new Input(-1, 0, false, true, true));
+        });
+        helper.runAtTickTime(90, () -> v.setScriptedInput(null));
+        helper.runAtTickTime(150, () -> {
             helper.assertTrue(v.getX() > helper.absoluteVec(new Vec3(30, 0, 0)).x, "past the step: " + (v.getX() - helper.absoluteVec(new Vec3(0, 0, 0)).x));
             helper.assertTrue(Math.abs(v.getY() - (floorY + 2.0)) < 0.1, "standing two blocks higher: " + (v.getY() - floorY));
-            helper.assertTrue(v.suspension(1.0f).isSettled(), "settled: " + v.suspension(1.0f));
+            helper.assertTrue(v.suspension(1.0f).isSettled(), "settled: " + v.suspension(1.0f) + " at " + (v.getX() - helper.absoluteVec(new Vec3(0, 0, 0)).x));
             helper.succeed();
         });
     }

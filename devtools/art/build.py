@@ -1,55 +1,51 @@
-"""The Trailblazer's art, as code: the generated bundle normalized into what Vanilla Wheels reads.
+"""The Trailblazer's art, as code: a Blockbench project for the truck and one for its wheel, and the profile.
 
 Run from the repository root:
 
     uv run --no-project python devtools/art/build.py
 
-Reads the generator's OBJ and MTL files from devtools/art/src/ (committed as
-they came, see SOURCES.md there), and writes:
+Writes:
 
-  src/main/resources/assets/trailblazer/vanillawheels/mesh/trailblazer.obj
-  src/main/resources/assets/trailblazer/vanillawheels/mesh/trailblazer_wheel.obj
-  src/main/resources/assets/trailblazer/textures/entity/trailblazer.png
+  src/main/resources/assets/trailblazer/vanillawheels/mesh/trailblazer.bbmodel
+  src/main/resources/assets/trailblazer/vanillawheels/mesh/trailblazer_wheel.bbmodel
   src/main/resources/data/trailblazer/vanillawheels/vehicle/trailblazer.json
   src/main/resources/assets/trailblazer/lang/en_us.json
 
-What it changes, and why (measured on the bundle, see knowledge/decisions):
+The truck is a box model designed here, to the reference Rusty gave: an
+open-top, roll-caged, light-blue pickup with a slotted grille, angular
+black fenders over big treaded tyres, a raked windshield in a grey frame,
+grey bumpers with hooks and a winch, black seats, side mirrors. It is
+written as a Blockbench project (cubes, each with a rotation about an
+origin and a texture rectangle per face; folders in the outliner; the
+texture embedded) so that Blockbench opens it as it is and every part can
+be moved or repainted there, and Vanilla Wheels reads the saved file
+back. The frame is Blockbench's, which is Minecraft's: +Z forward (the
+"south" side is the nose), +Y up, +X the vehicle's left; units are
+pixels, sixteen to a block.
 
-- The cab was a solid block from floor to window sill, the roof at 32 px,
-  and a seated player's eye is 26 px above the seat, so the driver's head
-  stood above the roof and inside the block. The cab is hollowed (a floor,
-  two side walls, a bulkhead, a rear wall), the roof, pillars, glass and
-  mirrors rise 8 px, the seats sit 3 px higher on the new floor, and the
-  seat points put every eye 2 px under the new roof.
-- The gauge cluster sat inside the hood facing the nose. It is flipped and
-  moved into the cab under the windshield facing the driver, and its stub
-  needles are replaced with needles as long as the dials' radius, pivoted
-  at the dial centres.
-- The steering wheel rises to sit under the dials and comes toward the
-  driver, its column shortened to the bulkhead; the gear stick stands on
-  the new floor.
-- The atlas is regenerated as an 8 x 8 grid of 32 px swatches so the
-  seventeenth material (the needles) has a cell, the body swatches are
-  greys so the dye colour multiplies in, and the glass has alpha.
-- Every face's UVs are rewritten onto its material's new cell, keeping the
-  face's own orientation within the cell.
+Every face gets its own patch of the texture at one texel per pixel (more
+on the dials and the lenses), painted here: a three-tone pixel noise per
+material, and drawn detail where a face is something -- the grille's
+seven slots, the lenses, the bonnet vents, the door seams, the tail
+lights, and the tread, the rims and the dials, which are painted by where
+each texel is in the world so a turned slab of a tyre gets its share of
+the pattern. Body faces are greys so the dye colour multiplies in.
 
-The bundle is left-handed (+X is the vehicle's right with +Z forward), so
-the profile says so and Vanilla Wheels mirrors it once at load. Everything
-here stays in the bundle's frame, in pixels.
+Selectors in the profile name folders and elements, never materials: a
+project with one texture has one material.
 """
 from __future__ import annotations
 
+import base64
 import json
 import math
 import struct
 import sys
+import uuid as uuidlib
 import zlib
-from collections import defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-SRC = Path(__file__).resolve().parent / "src"
 MODID = "trailblazer"
 ASSETS = ROOT / "src/main/resources/assets" / MODID
 DATA = ROOT / "src/main/resources/data" / MODID
@@ -57,316 +53,596 @@ DATA = ROOT / "src/main/resources/data" / MODID
 
 # ---------------------------------------------------------------- PNG writing
 
-def write_png(path: Path, width: int, height: int, pixels) -> None:
+def png_bytes(width: int, height: int, pixels) -> bytes:
     raw = b"".join(b"\x00" + b"".join(bytes(p) for p in row) for row in pixels)
 
     def chunk(kind: bytes, data: bytes) -> bytes:
         return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
 
-    png = (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0))
-           + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b""))
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(png)
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b""))
 
 
 class Noise:
     def __init__(self, seed: int) -> None:
-        self.state = seed & 0xFFFFFFFF
+        self.state = (seed * 2654435761 + 1) & 0xFFFFFFFF
 
     def next(self) -> float:
         self.state = (1664525 * self.state + 1013904223) & 0xFFFFFFFF
         return self.state / 0xFFFFFFFF
 
 
-# ---------------------------------------------------------------- the mesh
+# ---------------------------------------------------------------- materials
 
-class Face:
-    __slots__ = ("material", "corners", "uv")
+# Three tones each: base, light, dark. The body's are greys: the dye multiplies in.
+TONES = {
+    "body": ((236, 236, 236), (250, 250, 250), (214, 214, 214)),
+    "rubber": ((38, 40, 46), (56, 58, 64), (26, 28, 32)),
+    "tyre": ((40, 42, 46), (92, 94, 100), (26, 28, 30)),
+    "metal": ((166, 170, 178), (196, 200, 208), (130, 134, 142)),
+    "metal_dark": ((92, 96, 104), (110, 114, 122), (72, 76, 84)),
+    "seat": ((30, 30, 34), (44, 44, 48), (20, 20, 22)),
+    "seat_light": ((74, 76, 82), (90, 92, 98), (60, 62, 66)),
+    "floor": ((58, 60, 66), (70, 72, 78), (46, 48, 52)),
+    "dash": ((48, 50, 56), (62, 64, 70), (36, 38, 42)),
+    "lamp": ((238, 232, 196), (255, 252, 230), (214, 206, 160)),
+    "glass": ((196, 228, 242), (232, 246, 252), (172, 214, 234)),
+    "needle": ((214, 48, 40), (236, 70, 60), (180, 34, 30)),
+    "tail": ((196, 36, 30), (224, 60, 50), (160, 26, 22)),
+    "hub": ((150, 152, 158), (174, 176, 182), (124, 126, 132)),
+}
+ALPHA = {"glass": 90}
+GLASS_PANE, GLASS_EDGE, GLASS_STREAK = 50, 110, 150
+DETAIL = {"dial": 4, "lens": 2, "rim": 2, "hubcap": 2}
 
-    def __init__(self, material, corners, uv):
+
+# ---------------------------------------------------------------- geometry
+
+def sub(a, b):
+    return (a[0] - b[0], a[1] - b[1], a[2] - b[2])
+
+
+def add(a, b):
+    return (a[0] + b[0], a[1] + b[1], a[2] + b[2])
+
+
+def scale(a, s):
+    return (a[0] * s, a[1] * s, a[2] * s)
+
+
+def length(a):
+    return math.sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2])
+
+
+def rotate(p, origin, r):
+    """Blockbench's turn: about the origin, X then Y then Z, degrees."""
+    x, y, z = sub(p, origin)
+    a, b, g = (math.radians(v) for v in r)
+    y, z = y * math.cos(a) - z * math.sin(a), y * math.sin(a) + z * math.cos(a)
+    x, z = x * math.cos(b) + z * math.sin(b), -x * math.sin(b) + z * math.cos(b)
+    x, y = x * math.cos(g) - y * math.sin(g), x * math.sin(g) + y * math.cos(g)
+    return add((x, y, z), origin)
+
+
+class FaceRef:
+    """One face of a cube: its material, its decal, its world corners in texture order, and the atlas rect it gets."""
+    __slots__ = ("cube", "direction", "material", "decal", "corners", "rect")
+
+    def __init__(self, cube, direction, material, decal, corners):
+        self.cube = cube
+        self.direction = direction
         self.material = material
-        self.corners = corners      # list of (x, y, z)
-        self.uv = uv                # list of (fu, fv) in 0..1 within the material's cell
+        self.decal = decal
+        self.corners = corners
+        self.rect = None
 
 
-def read_mtl(path: Path):
-    """Material name -> Kd colour (0..255 ints)."""
-    colours = {}
-    name = None
-    for line in path.read_text().splitlines():
-        t = line.split()
-        if not t:
-            continue
-        if t[0] == "newmtl":
-            name = t[1]
-        elif t[0] == "Kd" and name:
-            colours[name] = tuple(int(round(float(c) * 255)) for c in t[1:4])
-    return colours
+class Cube:
+    __slots__ = ("name", "folder", "lo", "hi", "origin", "rotation", "material", "faces", "decals", "uuid", "refs")
 
-
-def read_obj(path: Path):
-    """The faces of an OBJ, with their UVs reduced to fractions of whatever 4 x 4 cell they sat in."""
-    v, vt, faces, material = [], [], [], None
-    for line in path.read_text().splitlines():
-        t = line.split()
-        if not t:
-            continue
-        if t[0] == "v":
-            v.append(tuple(float(c) for c in t[1:4]))
-        elif t[0] == "vt":
-            vt.append((float(t[1]), float(t[2])))
-        elif t[0] == "usemtl":
-            material = t[1]
-        elif t[0] == "f":
-            corners, uvs = [], []
-            for c in t[1:]:
-                parts = c.split("/")
-                corners.append(v[int(parts[0]) - 1])
-                uvs.append(vt[int(parts[1]) - 1] if len(parts) > 1 and parts[1] else (0.0, 0.0))
-            u0 = math.floor(min(u for u, _ in uvs) * 4 + 1e-6)
-            v0 = math.floor(min(w for _, w in uvs) * 4 + 1e-6)
-            frac = [(min(1.0, max(0.0, u * 4 - u0)), min(1.0, max(0.0, w * 4 - v0))) for u, w in uvs]
-            faces.append(Face(material, corners, inset(frac)))
-    return faces
-
-
-# Every UV is kept this far inside its swatch: a coordinate on the swatch's
-# edge samples the neighbour, or the atlas's empty padding, whose alpha is
-# zero -- and the cutout shader then drops the whole face. The bundle's
-# polygon caps carry one coordinate for every corner, right on the corner.
-INSET = 0.06
-
-
-def inset(uvs):
-    return [(INSET + (1 - 2 * INSET) * u, INSET + (1 - 2 * INSET) * v) for u, v in uvs]
-
-
-def pieces(faces):
-    """Faces grouped into connected pieces (shared vertex coordinates), each with its bounds."""
-    parent = {}
-
-    def find(a):
-        while parent.setdefault(a, a) != a:
-            parent[a] = parent[parent[a]]
-            a = parent[a]
-        return a
-
-    def union(a, b):
-        ra, rb = find(a), find(b)
-        if ra != rb:
-            parent[ra] = rb
-
-    for f in faces:
-        keys = [tuple(round(c, 4) for c in p) for p in f.corners]
-        for k in keys[1:]:
-            union(keys[0], k)
-    groups = defaultdict(list)
-    for f in faces:
-        groups[find(tuple(round(c, 4) for c in f.corners[0]))].append(f)
-    out = []
-    for fs in groups.values():
-        pts = [p for f in fs for p in f.corners]
-        lo = tuple(min(p[k] for p in pts) for k in range(3))
-        hi = tuple(max(p[k] for p in pts) for k in range(3))
-        out.append(Piece(fs, lo, hi))
-    return out
-
-
-class Piece:
-    def __init__(self, faces, lo, hi):
-        self.faces = faces
+    def __init__(self, name, folder, lo, hi, material, rotation=(0, 0, 0), origin=None, faces=None, decals=None):
+        self.name = name
+        self.folder = folder
         self.lo = lo
         self.hi = hi
-        self.materials = sorted({f.material for f in faces})
+        self.material = material
+        self.rotation = rotation
+        self.origin = origin if origin is not None else ((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2)
+        self.faces = faces or {}
+        self.decals = decals or {}
+        self.uuid = str(uuidlib.uuid5(uuidlib.NAMESPACE_URL, f"{folder}/{name}/{lo}/{hi}/{rotation}"))
+        self.refs = []
 
-    def within(self, x=None, y=None, z=None, material=None):
-        """Whether the piece's bounds sit inside the given ranges (each (lo, hi) or None) and it uses the material."""
-        for rng, lo, hi in ((x, self.lo[0], self.hi[0]), (y, self.lo[1], self.hi[1]), (z, self.lo[2], self.hi[2])):
-            if rng is not None and not (rng[0] - 1e-6 <= lo and hi <= rng[1] + 1e-6):
-                return False
-        return material is None or material in self.materials
-
-    def map(self, fn):
-        for f in self.faces:
-            f.corners = [fn(p) for p in f.corners]
-
-
-def box(material, x0, y0, z0, x1, y1, z1):
-    """Six quads wound outward, each on the whole of the material's cell."""
-    c = [(x0, y0, z0), (x1, y0, z0), (x1, y1, z0), (x0, y1, z0), (x0, y0, z1), (x1, y0, z1), (x1, y1, z1), (x0, y1, z1)]
-    uv = inset([(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)])
-    quads = [(0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (2, 3, 7, 6), (1, 2, 6, 5), (0, 4, 7, 3)]
-    return [Face(material, [c[i] for i in q], list(uv)) for q in quads]
-
-
-def stretch(piece, axis, lo=None, hi=None):
-    """Moves the piece's faces at its low or high bound on an axis to a new value: a box gets taller, not moved."""
-    old_lo, old_hi = piece.lo[axis], piece.hi[axis]
-
-    def fn(p):
-        p = list(p)
-        if lo is not None and abs(p[axis] - old_lo) < 1e-6:
-            p[axis] = lo
-        if hi is not None and abs(p[axis] - old_hi) < 1e-6:
-            p[axis] = hi
-        return tuple(p)
-
-    piece.map(fn)
+    def corners(self, direction):
+        """The face's corners, top-left, top-right, bottom-right, bottom-left as seen from outside, after the turn."""
+        x0, y0, z0 = self.lo
+        x1, y1, z1 = self.hi
+        c = {
+            "north": [(x1, y1, z0), (x0, y1, z0), (x0, y0, z0), (x1, y0, z0)],
+            "south": [(x0, y1, z1), (x1, y1, z1), (x1, y0, z1), (x0, y0, z1)],
+            "east": [(x1, y1, z1), (x1, y1, z0), (x1, y0, z0), (x1, y0, z1)],
+            "west": [(x0, y1, z0), (x0, y1, z1), (x0, y0, z1), (x0, y0, z0)],
+            "up": [(x0, y1, z0), (x1, y1, z0), (x1, y1, z1), (x0, y1, z1)],
+            "down": [(x0, y0, z1), (x1, y0, z1), (x1, y0, z0), (x0, y0, z0)],
+        }[direction]
+        return [rotate(p, self.origin, self.rotation) for p in c]
 
 
-def shift(piece, dx=0.0, dy=0.0, dz=0.0):
-    piece.map(lambda p: (p[0] + dx, p[1] + dy, p[2] + dz))
+DIRECTIONS = ("north", "south", "east", "west", "up", "down")
+# The model's own words for a cube's sides: the nose is +Z, Blockbench's south.
+SIDE = {"front": "south", "back": "north", "left": "east", "right": "west", "top": "up", "bottom": "down"}
+
+CUBES = []
 
 
-# ---------------------------------------------------------------- the cab repair
-
-ROOF_RISE = 8.0
-SEAT_RISE = 3.0
-# The cluster: flipped in z about 17.3 and pushed to sit on the bulkhead's inner face, raised to the dash.
-CLUSTER_FLIP = 2 * 17.3 + 0.95
-CLUSTER_RISE = 11.0
-NEEDLE_LENGTH = 2.1
-DIAL_LIFT = 0.4
-WHEEL_RISE = 4.0
-WHEEL_TOWARD = 3.4
-SPEED_PIVOT = (-8.0, 17.0 + CLUSTER_RISE, CLUSTER_FLIP - 21.9)
-FUEL_PIVOT = (-2.0, 17.0 + CLUSTER_RISE, CLUSTER_FLIP - 21.9)
+def cube(name, folder, x0, y0, z0, x1, y1, z1, material, rotation=(0, 0, 0), origin=None, faces=None, decals=None):
+    c = Cube(name, folder, (min(x0, x1), min(y0, y1), min(z0, z1)), (max(x0, x1), max(y0, y1), max(z0, z1)), material, rotation, origin,
+             {SIDE[k]: v for k, v in (faces or {}).items()}, {SIDE[k]: v for k, v in (decals or {}).items()})
+    CUBES.append(c)
+    return c
 
 
-def repair(faces):
-    """The cab repair on the truck's pieces; returns the new face list."""
-    ps = pieces(faces)
-    keep = []
-    added = []
-    for p in ps:
-        # The solid cab: replaced by a floor, two side walls, a bulkhead under the windshield, and a rear wall.
-        if p.within(x=(-15, 15), y=(10, 25), z=(-15, 17), material="body_blue") and len(p.faces) == 6:
-            added += box("body_blue", -15, 10, -15, 15, 12, 17)
-            added += box("body_blue", -15, 12, -15, -13, 25, 17)
-            added += box("body_blue", 13, 12, -15, 15, 25, 17)
-            added += box("body_blue", -15, 12, 15, 15, 25, 17)
-            added += box("body_blue", -15, 12, -15, 15, 25, -13)
-            continue
-        # The roof rises; the pillars, the rear shell, the B-pillar strips and the glass reach up to it.
-        if p.within(x=(-16, 16), y=(28, 32), z=(-17, 18), material="body_blue"):
-            shift(p, dy=ROOF_RISE)
-        elif p.within(y=(18, 31), z=(-17, 18), material="metal") and abs(p.hi[0] - p.lo[0]) <= 2.01 and p.hi[1] - p.lo[1] > 10:
-            stretch(p, 1, hi=28 + ROOF_RISE)
-        elif p.within(x=(-15, 15), y=(12, 28), z=(-19, -14), material="body_blue_dark"):
-            stretch(p, 1, hi=28 + ROOF_RISE)
-        elif p.within(y=(12, 25), material="body_blue_shadow") and p.hi[2] - p.lo[2] <= 1.01:
-            stretch(p, 1, hi=28 + ROOF_RISE)
-        elif p.within(y=(22, 28), material="glass") and p.hi[0] - p.lo[0] <= 1.0:
-            stretch(p, 1, lo=25, hi=28 + ROOF_RISE)
-        elif p.within(x=(-12, 12), y=(19.5, 27.5), z=(16.5, 17.2), material="glass"):
-            stretch(p, 1, lo=25, hi=28 + ROOF_RISE)
-        elif p.within(x=(-13, 13), y=(18.5, 28.5), z=(17, 17.5), material="metal"):
-            stretch(p, 1, lo=24.5, hi=29 + ROOF_RISE)
-        elif p.within(y=(22, 31), z=(6, 12)) and p.lo[0] >= 17 or p.within(y=(22, 31), z=(6, 12)) and p.hi[0] <= -17:
-            shift(p, dy=ROOF_RISE)
-        # The seats sit on the new floor.
-        elif p.within(y=(9, 24), z=(-11, 12), material="black") and p.hi[0] - p.lo[0] == 10:
-            shift(p, dy=SEAT_RISE)
-        # The gear stick on the centreline stands on the new floor.
-        elif p.within(x=(-1, 1), y=(11, 18), z=(8, 11), material="metal") or p.within(x=(-2, 2), y=(10, 12), z=(8, 11), material="black"):
-            shift(p, dy=SEAT_RISE)
-        # The steering wheel -- a ring of small blocks about (-9, 17) on the bulkhead -- rises to sit
-        # under the dials and comes toward the driver; its column shortens to reach the bulkhead.
-        elif p.within(x=(-14, -4), y=(12, 22), z=(14.5, 15.5), material="black") and len(p.faces) == 6:
-            shift(p, dy=WHEEL_RISE, dz=-WHEEL_TOWARD)
-        elif p.within(x=(-10.3, -7.7), y=(14.5, 17.5), z=(9, 15), material="metal") and len(p.faces) == 14:
-            # The column: its far end stays on the bulkhead, its near end comes to the ring.
-            p.map(lambda q: (q[0], q[1] + WHEEL_RISE, 15 - (15 - q[2]) * (1 - WHEEL_TOWARD / 6.0)))
-        elif p.within(x=(-10.3, -7.7), y=(16, 18), z=(14.5, 16), material="metal"):
-            shift(p, dy=WHEEL_RISE, dz=-WHEEL_TOWARD)
-        # The cluster: bezels, dials and ticks flip to face the driver and rise to the dash; the stub needles go.
-        elif p.within(z=(20.5, 22.2)) and set(p.materials) <= {"black", "gauge_dark", "gauge", "needle"}:
-            if p.materials == ["needle"]:
-                continue
-            # Dials and ticks come a little further off the bezels than they sat, so the faces do not fight.
-            toward = 0.0 if p.materials == ["black"] else DIAL_LIFT
-            p.map(lambda q: (q[0], q[1] + CLUSTER_RISE, CLUSTER_FLIP - q[2] - toward))
-        keep.append(p)
-    out = [f for p in keep for f in p.faces] + added
-    # New needles: a thin bar from each pivot up to the dial's rim, ahead of the ticks.
-    for px, py, pz in (SPEED_PIVOT, FUEL_PIVOT):
-        out += box("needle", px - 0.18, py - 0.2, pz - DIAL_LIFT - 0.9, px + 0.18, py + NEEDLE_LENGTH, pz - DIAL_LIFT - 0.6)
-    return out
+# ---------------------------------------------------------------- the truck
+
+WHEEL_R = 15.0
+WHEEL_W = 12.0
+FRONT_AXLE = 33
+REAR_AXLE = -37
+TRACK = 24
+# The body's datum lines, measured off the reference against its tyre: the bonnet and the tub's top edge at
+# 1.27 tyres over the ground, the fenders' tops three pixels under that, the cage's top at 1.87 tyres.
+TUB_TOP = 38
+FENDER_TOP = 35
+CAGE_TOP = 56
+NOSE = 46
+TAIL = -52
+
+
+def truck():
+    CUBES.clear()
+    B = "body"
+    # --- the tub: floor, sides, tailgate; the doors as proud panels with a seam painted round them; a marker
+    # lamp on each front corner
+    cube("floor", "tub", -18, 12, TAIL + 2, 18, 16, 16, "floor")
+    cube("side_left", "body/tub", 18, 16, TAIL, 21, TUB_TOP, 16, B, decals={"left": "flank"})
+    cube("side_right", "body/tub", -21, 16, TAIL, -18, TUB_TOP, 16, B, decals={"right": "flank"})
+    cube("tailgate", "body/tub", -21, 16, TAIL, 21, TUB_TOP, TAIL + 2, B, decals={"back": "tailgate"})
+    cube("tail_sill", "body/tub", -21, 12, TAIL, 21, 16, TAIL + 2, B)
+    for sx, side in ((1, "left"), (-1, "right")):
+        x0, x1 = (21, 22) if sx > 0 else (-22, -21)
+        cube(f"door_front_{side}", "body/doors", x0, 17, -4, x1, TUB_TOP - 1, 11, B, decals={side: "door"})
+        cube(f"door_rear_{side}", "body/doors", x0, 17, -21, x1, TUB_TOP - 1, -5, B, decals={side: "door"})
+        hx0, hx1 = (22, 23) if sx > 0 else (-23, -22)
+        cube(f"handle_front_{side}", "handles", hx0, 30, 6, hx1, 31, 10, "metal")
+        cube(f"handle_rear_{side}", "handles", hx0, 30, -11, hx1, 31, -7, "metal")
+        mx0, mx1 = (19, 21.5) if sx > 0 else (-21.5, -19)
+        cube(f"marker_{side}", "lights", mx0, 26, NOSE - 3, mx1, 28, NOSE - 1, "metal")
+    # --- the bonnet over the engine bay, the vents at its cowl; the nose is a slab whose face is the grille,
+    # the lamps proud of it at its top corners
+    cube("bonnet", "body/bonnet", -20, 30, 12, 20, TUB_TOP, NOSE - 2, B, decals={"top": "bonnet"})
+    cube("engine_bay", "body/bonnet", -20, 21, 16, 20, 30, NOSE - 2, B)
+    cube("nose", "body/bonnet", -20, 21, NOSE - 2, 20, TUB_TOP, NOSE, B, decals={"front": "grille"})
+    for sx, side in ((1, "left"), (-1, "right")):
+        x0, x1 = (12, 18) if sx > 0 else (-18, -12)
+        cube(f"lens_{side}", "lamps/lenses", x0, 29, NOSE, x1, 36, NOSE + 1, "lamp", decals={"front": "lamp"})
+    # --- fenders: black, a thick flat top three pixels under the bonnet line, a wedge angled down to the bumper
+    # ahead of the front wheel and behind the rear one, a solid block under the front wedge beside the grille,
+    # a straight leg down to the rocker behind the front wheel and ahead of the rear one (a door sits right
+    # behind each arch, so there is no room for the reference's angled one); the rocker step between them
+    for sx, side in ((1, "left"), (-1, "right")):
+        x0, x1 = (20, 29) if sx > 0 else (-29, -20)
+        fx = (x0 + x1) / 2
+        cube(f"fender_front_{side}", "fenders", x0, FENDER_TOP - 4, 12, x1, FENDER_TOP, NOSE, "rubber")
+        cube(f"fender_nose_{side}", "fenders", x0, FENDER_TOP - 4, NOSE, x1, FENDER_TOP, NOSE + 12, "rubber", rotation=(45, 0, 0), origin=(fx, FENDER_TOP, NOSE))
+        cube(f"fender_front_block_{side}", "fenders", x0, 22, NOSE - 2, x1, FENDER_TOP - 4, NOSE + 1, "rubber")
+        lx0, lx1 = (x1 - 3, x1) if sx > 0 else (x0, x0 + 3)
+        cube(f"fender_leg_front_{side}", "fenders", lx0, 15, 12, lx1, FENDER_TOP - 4, 15, "rubber")
+        cube(f"fender_rear_{side}", "fenders", x0, FENDER_TOP - 4, TAIL, x1, FENDER_TOP, -21, "rubber")
+        cube(f"fender_tail_{side}", "fenders", x0, FENDER_TOP - 4, TAIL - 9, x1, FENDER_TOP, TAIL, "rubber", rotation=(-45, 0, 0), origin=(fx, FENDER_TOP, TAIL))
+        cube(f"fender_leg_rear_{side}", "fenders", lx0, 15, -24, lx1, FENDER_TOP - 4, -21, "rubber")
+        sx0, sx1 = (21, 28) if sx > 0 else (-28, -21)
+        cube(f"step_{side}", "fenders", sx0, 12, -24, sx1, 15, 15, "metal_dark")
+    # --- bumpers with chamfered ends; hook lamps and a winch on the front one, the hitch ball on the rear
+    BUMPER = (13, 21)
+    cube("bumper_front", "bumpers", -28, BUMPER[0], NOSE, 28, BUMPER[1], NOSE + 8, "metal", decals={"front": "bumper"})
+    cube("bumper_rear", "bumpers", -28, BUMPER[0], TAIL - 6, 28, BUMPER[1], TAIL, "metal", decals={"back": "bumper"})
+    for sx, side in ((1, "left"), (-1, "right")):
+        x0, x1 = (28, 35) if sx > 0 else (-35, -28)
+        cube(f"bumper_end_front_{side}", "bumpers", x0, BUMPER[0], NOSE, x1, BUMPER[1], NOSE + 8, "metal", rotation=(0, 32 * sx, 0), origin=(28 * sx, 17, NOSE + 4), decals={"front": "bumper"})
+        cube(f"bumper_end_rear_{side}", "bumpers", x0, BUMPER[0], TAIL - 6, x1, BUMPER[1], TAIL, "metal", rotation=(0, -32 * sx, 0), origin=(28 * sx, 17, TAIL - 3), decals={"back": "bumper"})
+        fx0, fx1 = (20, 25) if sx > 0 else (-25, -20)
+        cube(f"hook_lamp_{side}", "bumpers", fx0, BUMPER[1], NOSE + 3, fx1, BUMPER[1] + 5, NOSE + 7, "metal", decals={"front": "hook"})
+    cube("winch", "bumpers", -7, BUMPER[1], NOSE + 1, 7, BUMPER[1] + 6, NOSE + 6, "metal_dark")
+    cube("winch_drum", "bumpers", -4, BUMPER[1] + 1, NOSE + 6, 4, BUMPER[1] + 5, NOSE + 8, "metal", decals={"front": "drum"})
+    cube("winch_cable", "bumpers", -0.5, BUMPER[0] + 4, NOSE + 8, 0.5, BUMPER[1] + 1, NOSE + 9, "metal_dark")
+    cube("winch_hook", "bumpers", -1.5, BUMPER[0] + 1, NOSE + 7.5, 1.5, BUMPER[0] + 4, NOSE + 9.5, "metal_dark")
+    cube("hitch_post", "bumpers", -1, BUMPER[0] + 1, TAIL - 7, 1, BUMPER[1], TAIL - 4, "metal_dark")
+    cube("hitch_ball", "bumpers", -2, BUMPER[1], TAIL - 8, 2, BUMPER[1] + 2, TAIL - 4, "metal")
+    for sx, side in ((1, "left"), (-1, "right")):
+        x0, x1 = (13, 19) if sx > 0 else (-19, -13)
+        cube(f"tail_light_{side}", "lights", x0, 27, TAIL - 1, x1, 33, TAIL, "tail", decals={"back": "tail"})
+    cube("exhaust", "bumpers", 9, 11, TAIL - 5, 11, 13, TAIL + 8, "metal_dark")
+    # --- the windshield: one raked frame -- base rail, two pillars -- turned together about the base's
+    # centreline, the glass inset in it, all running up into a level header that is one bar with the cage.
+    # A turn about +X by a positive angle carries the top toward +Z, the nose: a windshield leans back, so its
+    # rake is negative. The base rail starts down inside the bonnet and dash so that, turned, no edge of it
+    # lifts clear of them.
+    T = 4
+    RAKE = -14
+    PIVOT = (0, 40, 14)
+    cube("windshield_base", "cage/windshield_frame", -21, 36, 12, 21, 41, 16, "metal", rotation=(RAKE, 0, 0), origin=PIVOT)
+    for sx, side in ((1, "left"), (-1, "right")):
+        x0, x1 = (17, 17 + T) if sx > 0 else (-17 - T, -17)
+        cube(f"a_pillar_{side}", "cage/windshield_frame", x0, 41, 12, x1, CAGE_TOP - 1, 16, "metal", rotation=(RAKE, 0, 0), origin=PIVOT)
+    cube("windshield", "windshield", -17, 41, 13.75, 17, CAGE_TOP - T + 1, 14.25, "glass", rotation=(RAKE, 0, 0), origin=PIVOT, decals={"front": "glass", "back": "glass"})
+    pillar_rear = rotate((0, CAGE_TOP - T, 12), PIVOT, (RAKE, 0, 0))[2]
+    pillar_front = rotate((0, CAGE_TOP - 1, 16), PIVOT, (RAKE, 0, 0))[2]
+    header_back = math.floor(pillar_rear - 0.5)
+    header_front = round(pillar_front, 2)
+    cube("header", "cage/windshield_frame", -21, CAGE_TOP - T, header_back, 21, CAGE_TOP, header_front, "metal")
+    # --- the cage: a flat rectangle over the front seats, a post at the doors' seam and a hoop behind the
+    # front row, a brace from each rear corner down and back to the tub over the rear wheel
+    HOOP = -20
+    for sx, side in ((1, "left"), (-1, "right")):
+        x0, x1 = (17, 17 + T) if sx > 0 else (-17 - T, -17)
+        cube(f"roof_rail_{side}", "cage", x0, CAGE_TOP - T, HOOP - T, x1, CAGE_TOP, header_back + 0.5, "metal")
+        cube(f"b_post_{side}", "cage", x0, TUB_TOP, -8, x1, CAGE_TOP - T, -4, "metal")
+        cube(f"hoop_post_{side}", "cage", x0, TUB_TOP, HOOP - T, x1, CAGE_TOP - T, HOOP, "metal")
+        cube(f"brace_{side}", "cage", x0, CAGE_TOP - T, HOOP - T - 24, x1, CAGE_TOP, HOOP - T, "metal", rotation=(-40, 0, 0), origin=((x0 + x1) / 2, CAGE_TOP - T / 2, HOOP - T))
+    cube("hoop_bar", "cage", -21, CAGE_TOP - T, HOOP - T, 21, CAGE_TOP, HOOP, "metal")
+    cube("cross_bar", "cage", -21, CAGE_TOP - T, -8, 21, CAGE_TOP, -4, "metal")
+    # --- mirrors on the pillars
+    for sx, side in ((1, "left"), (-1, "right")):
+        ax0, ax1 = (21, 27) if sx > 0 else (-27, -21)
+        mx0, mx1 = (23, 29) if sx > 0 else (-29, -23)
+        cube(f"mirror_arm_{side}", "mirrors", ax0, 46, 12, ax1, 47, 13, "metal_dark")
+        cube(f"mirror_{side}", "mirrors", mx0, 42, 11.5, mx1, 51, 13.5, "metal", decals={"back": "mirror"})
+    # --- inside: seats, dash, binnacle with the dials, steering wheel, gear stick
+    for row, (sz0, sz1) in (("front", (-5, 7)), ("rear", (-24, -12))):
+        for sx, side in ((1, "left"), (-1, "right")):
+            x0, x1 = (3, 14) if sx > 0 else (-14, -3)
+            cube(f"cushion_{row}_{side}", "seats", x0, 17, sz0, x1, 24, sz1, "seat")
+            cube(f"backrest_{row}_{side}", "seats", x0, 24, sz0, x1, 44, sz0 + 3, "seat")
+            cube(f"headrest_{row}_{side}", "seats", x0 + 2, 44, sz0, x1 - 2, 48, sz0 + 3, "seat_light")
+    cube("dash_top", "dash", -20, 34, 8, 20, TUB_TOP, 14, "dash")
+    cube("binnacle", "dash", 3, TUB_TOP, 10, 15, 44, 14, "dash")
+    dial(8.0, 41.0, 10.0, 2.2, "speed")
+    dial(12.8, 41.0, 10.0, 1.5, "fuel")
+    for i in range(8):
+        a = 2 * math.pi * i / 8
+        wx, wy = 8.5 + 4.6 * math.cos(a), 36 + 4.6 * math.sin(a)
+        cube(f"wheel_rim_{i}", "steering", wx - 0.9, wy - 0.9, 4.0, wx + 0.9, wy + 0.9, 5.4, "seat")
+    cube("column", "steering", 7.7, 32, 5, 9.3, 37, 10, "metal_dark")
+    cube("gear_stick", "dash", -1, 17, -1, 1, 27, 1, "metal_dark")
+    return list(CUBES)
+
+
+def dial(x, y, z, radius, kind):
+    """A dial facing the driver: a square plate a hair proud of the binnacle, painted round by radius and angle with its corners in the binnacle's tone; a red needle on the centre."""
+    cube(f"dial_{kind}", f"dash/dial_{kind}", x - radius, y - radius, z - 0.4, x + radius, y + radius, z, "dash", decals={"back": "dial"})
+    cube(f"needle_{kind}", f"dash/needle_{kind}", x - 0.25, y - 0.3, z - 0.9, x + 0.25, y + radius - 0.4, z - 0.6, "needle")
+
+
+def wheel():
+    CUBES.clear()
+    # The tyre: eight slabs through the axle, each turned 22.5 degrees on from the last, whose long faces are the
+    # sixteen facets of the tread; their widths shrink by a hair so their sidewalls do not fight.
+    r = WHEEL_R
+    facet = 2 * r * math.tan(math.pi / 16)
+    for k in range(8):
+        hw = WHEEL_W / 2 - 0.05 * k
+        cube(f"tyre_{k}", "tyre", -hw, -r * math.cos(math.pi / 16), -facet / 2, hw, r * math.cos(math.pi / 16), facet / 2, "tyre",
+             rotation=(22.5 * k, 0, 0), origin=(0, 0, 0), decals={"top": "tread", "bottom": "tread", "left": "rim", "right": "rim"})
+    hr = 8.0
+    hfacet = 2 * hr * math.tan(math.pi / 8)
+    for k in range(4):
+        hw = WHEEL_W / 2 + 0.4 - 0.05 * k
+        cube(f"hub_{k}", "hub", -hw, -hr * math.cos(math.pi / 8), -hfacet / 2, hw, hr * math.cos(math.pi / 8), hfacet / 2, "metal_dark",
+             rotation=(45 * k, 0, 0), origin=(0, 0, 0), decals={"left": "hubcap", "right": "hubcap"})
+    return list(CUBES)
+
+
+# ---------------------------------------------------------------- painting
+
+def fill_noise(px, w, h, tones, seed, patch=3, lighter=0.14, darker=0.14):
+    """Square patches, mostly the base tone, some lighter and a few darker: the calm speckle of a painted block model."""
+    noise = Noise(seed)
+    for y in range(0, h, patch):
+        for x in range(0, w, patch):
+            r = noise.next()
+            tone = tones[1] if r < lighter else tones[2] if r > 1 - darker else tones[0]
+            for dy in range(patch):
+                for dx in range(patch):
+                    if y + dy < h and x + dx < w:
+                        px[y + dy][x + dx] = tone
+
+
+def put(px, w, h, x, y, c):
+    if 0 <= x < w and 0 <= y < h:
+        px[y][x] = c
+
+
+def paint(face, w, h, seed):
+    """The texels of one face: its material's noise, then whatever the decal draws over it, by texel or by where the texel is."""
+    tones = TONES[face.material]
+    px = [[tones[0] for _ in range(w)] for _ in range(h)]
+    if face.material == "body":
+        fill_noise(px, w, h, tones, seed, patch=4, lighter=0.22, darker=0.05)
+    else:
+        fill_noise(px, w, h, tones, seed)
+    base, light, dark = tones
+    black = (14, 14, 16)
+    decal = face.decal
+    tl, tr, br, bl = face.corners
+    du = sub(tr, tl)
+    dv = sub(bl, tl)
+
+    def world(i, j):
+        return add(add(tl, scale(du, (i + 0.5) / w)), scale(dv, (j + 0.5) / h))
+
+    # Bevels, the reference's signature: a light row along the top edge of every upright face and a dark row
+    # along its bottom; on a top face, light along its front and side edges.
+    if face.material in ("body", "rubber", "metal", "metal_dark") and h >= 3 and w >= 3:
+        if face.direction == "up":
+            for x in range(w):
+                put(px, w, h, x, h - 1, light)
+            for y in range(h):
+                put(px, w, h, 0, y, light)
+                put(px, w, h, w - 1, y, light)
+        elif face.direction != "down":
+            for x in range(w):
+                put(px, w, h, x, 0, light)
+                put(px, w, h, x, h - 1, dark)
+    if decal == "grille":
+        # seven slots two texels wide, a texel apart, centred, nearly the face's height; a texel of dark frame round them
+        gw = 7 * 2 + 6
+        x0 = w // 2 - gw // 2
+        for y in range(1, h - 1):
+            put(px, w, h, x0 - 1, y, dark)
+            put(px, w, h, x0 + gw, y, dark)
+        for x in range(x0 - 1, x0 + gw + 1):
+            put(px, w, h, x, 1, dark)
+            put(px, w, h, x, h - 2, dark)
+        for k in range(7):
+            for y in range(2, h - 2):
+                put(px, w, h, x0 + k * 3, y, black)
+                put(px, w, h, x0 + k * 3 + 1, y, black)
+    elif decal == "lamp":
+        # a rectangular lamp: a grey rim, three dark slats across a pale face
+        for y in range(h):
+            for x in range(w):
+                rim = x == 0 or y == 0 or x == w - 1 or y == h - 1
+                put(px, w, h, x, y, (150, 152, 158) if rim else (70, 72, 78) if y in (2, 4, 6) else light)
+    elif decal == "hook":
+        for y in range(h):
+            for x in range(w):
+                rim = x == 0 or y == 0 or x == w - 1 or y == h - 1
+                put(px, w, h, x, y, dark if rim else black if y in (1, 3) else light)
+    elif decal == "ring":
+        cx, cy = (w - 1) / 2, (h - 1) / 2
+        r = min(w, h) / 2
+        for y in range(h):
+            for x in range(w):
+                d = math.hypot(x - cx, y - cy)
+                put(px, w, h, x, y, light if r - 1.6 < d < r + 0.2 else (base if d <= r - 1.6 else dark))
+    elif decal == "lens":
+        cx, cy = (w - 1) / 2, (h - 1) / 2
+        r = min(w, h) / 2
+        for y in range(h):
+            for x in range(w):
+                d = math.hypot(x - cx, y - cy)
+                c = base if d < r - 0.5 else (120, 124, 132)
+                if d < r - 0.5 and x < cx and y < cy and d > r * 0.35:
+                    c = light
+                put(px, w, h, x, y, c)
+        put(px, w, h, round(cx), round(cy), (255, 255, 240))
+    elif decal == "bonnet":
+        # four vent slots at the cowl end, placed by where the texel is: just ahead of the windshield's base
+        rear = face.cube.lo[2]
+        for j in range(h):
+            for i in range(w):
+                p = world(i, j)
+                if 7.0 <= p[2] - rear < 9.0 and any(abs(p[0] - (-7.5 + k * 5)) < 2.0 for k in range(4)):
+                    put(px, w, h, i, j, black)
+    elif decal == "door":
+        for x in range(w):
+            put(px, w, h, x, 0, dark)
+            put(px, w, h, x, h - 1, dark)
+        for y in range(h):
+            put(px, w, h, 0, y, dark)
+            put(px, w, h, w - 1, y, dark)
+        for x in range(2, w - 2):
+            put(px, w, h, x, 3, light)
+    elif decal == "flank":
+        for x in range(w):
+            put(px, w, h, x, 0, light)
+    elif decal == "tailgate":
+        for x in range(2, w - 2):
+            put(px, w, h, x, 3, dark)
+            put(px, w, h, x, h - 3, dark)
+        for y in range(3, h - 2):
+            put(px, w, h, 2, y, dark)
+            put(px, w, h, w - 3, y, dark)
+    elif decal == "bumper":
+        # a highlight on top, the upper half plain, the lower half lighter, a shadow along the bottom
+        for y in range(h):
+            for x in range(w):
+                put(px, w, h, x, y, light if y == 0 else base if y < h // 2 else light if y < h - 1 else dark)
+    elif decal == "drum":
+        for y in range(h):
+            for x in range(w):
+                rim = x == 0 or y == 0 or x == w - 1 or y == h - 1
+                put(px, w, h, x, y, dark if rim else light)
+    elif decal == "tail":
+        for y in range(h):
+            for x in range(w):
+                put(px, w, h, x, y, dark if (x == 0 or y == 0 or x == w - 1 or y == h - 1) else base)
+        put(px, w, h, 1, 1, light)
+    elif decal == "glass":
+        # nearly clear: a faint pane, one glare streak across it, a fine edge; the alpha rides with the texel
+        for y in range(h):
+            for x in range(w):
+                edge = x == 0 or y == 0 or x == w - 1 or y == h - 1
+                band = 0 <= (x + y) - (w // 3) <= 1
+                put(px, w, h, x, y, light + (GLASS_STREAK,) if band else base + (GLASS_EDGE,) if edge else base + (GLASS_PANE,))
+    elif decal == "mirror":
+        for y in range(1, h - 1):
+            for x in range(1, w - 1):
+                put(px, w, h, x, y, (200, 214, 226))
+    elif decal == "dial":
+        # by position in the dial's plane: the plate's centre is the cube's origin; round, the corners the binnacle's
+        ox, oy, oz = face.cube.origin
+        radius = (face.cube.hi[1] - face.cube.lo[1]) / 2
+        for j in range(h):
+            for i in range(w):
+                p = world(i, j)
+                d = math.hypot(p[0] - ox, p[1] - oy)
+                ang = math.degrees(math.atan2(p[0] - ox, p[1] - oy))
+                c = (30, 30, 34) if d < radius - 0.45 else (70, 72, 78) if d < radius else base
+                if radius - 0.9 < d < radius - 0.45:
+                    for k in range(9):
+                        if abs(ang - (-120 + k * 30)) < 7:
+                            c = (236, 232, 200)
+                put(px, w, h, i, j, c)
+    elif decal == "tread":
+        # by angle round the axle: a block in the middle of each facet in two rows either side of a centre groove,
+        # the rows staggered facet by facet, the shoulders plain
+        for j in range(h):
+            for i in range(w):
+                p = sub(world(i, j), face.cube.origin)
+                whole = math.degrees(math.atan2(p[2], p[1])) % 360
+                k = int(whole // 22.5)
+                ang = whole % 22.5
+                row = 1 if p[0] > 0 else -1
+                shift = 4.0 if (k + (row > 0)) % 2 == 0 else 6.5
+                block = shift < ang < shift + 11.0 and 1.0 < abs(p[0]) < 4.4
+                put(px, w, h, i, j, light if block else dark)
+    elif decal == "rim":
+        # by radius from the axle: sidewall, a rim ring, the rim face with five lugs, a hub
+        hub = TONES["hub"]
+        for j in range(h):
+            for i in range(w):
+                p = sub(world(i, j), face.cube.origin)
+                d = math.hypot(p[1], p[2])
+                ang = math.degrees(math.atan2(p[2], p[1]))
+                if d > WHEEL_R - 0.7:
+                    c = dark
+                elif d > 11.0:
+                    c = base
+                elif d > 9.6:
+                    c = hub[2]
+                elif d > 7.2:
+                    c = hub[0]
+                    for k in range(6):
+                        if abs(((ang - k * 60 + 180) % 360) - 180) < 11 and 7.4 < d < 9.4:
+                            c = (60, 62, 68)
+                else:
+                    c = hub[1]
+                put(px, w, h, i, j, c)
+    elif decal == "hubcap":
+        hub = TONES["hub"]
+        for j in range(h):
+            for i in range(w):
+                p = sub(world(i, j), face.cube.origin)
+                d = math.hypot(p[1], p[2])
+                put(px, w, h, i, j, hub[1] if d < 2.4 else hub[0] if d < 5.6 else hub[2])
+    return px
 
 
 # ---------------------------------------------------------------- the atlas
 
-CELL = 32
-GRID = 8
-# Paint materials are greys in the ratio of the bundle's blues, so a dye reproduces the shading.
-PAINT_GREY = {"body_blue": 240, "body_blue_hi": 255, "body_blue_dark": 171, "body_blue_shadow": 129}
-GLASS_ALPHA = 150
+def face_refs(cubes):
+    refs = []
+    for c in cubes:
+        for d in DIRECTIONS:
+            ref = FaceRef(c, d, c.faces.get(d, c.material), c.decals.get(d), c.corners(d))
+            c.refs.append(ref)
+            refs.append(ref)
+    return refs
 
 
-def cells(materials):
-    return {m: (i % GRID, i // GRID) for i, m in enumerate(sorted(materials))}
+def layout(refs):
+    """Gives every face a rect in the atlas at one texel per pixel (more where DETAIL says)."""
+    for f in refs:
+        tl, tr, br, bl = f.corners
+        detail = DETAIL.get(f.decal, 1)
+        f.rect = [max(1, round(length(sub(tr, tl)) * detail)), max(1, round(length(sub(bl, tl)) * detail))]
+    order = sorted(range(len(refs)), key=lambda i: (-refs[i].rect[1], -refs[i].rect[0]))
+    size = 256
+    while True:
+        x = y = shelf = 0
+        ok = True
+        for i in order:
+            w, h = refs[i].rect[:2]
+            if x + w + 1 > size:
+                x, y, shelf = 0, y + shelf + 1, 0
+            if y + h + 1 > size:
+                ok = False
+                break
+            refs[i].rect = [w, h, x, y]
+            x += w + 1
+            shelf = max(shelf, h)
+        if ok:
+            return size
+        size *= 2
 
 
-def atlas(materials, colours):
-    noise = Noise(0x7B1A)
-    px = [[(0, 0, 0, 0) for _ in range(CELL * GRID)] for _ in range(CELL * GRID)]
-    for m, (cx, cy) in cells(materials).items():
-        if m in PAINT_GREY:
-            base = (PAINT_GREY[m],) * 3
-        else:
-            base = colours.get(m, (200, 0, 200))
-        alpha = GLASS_ALPHA if m.startswith("glass") else 255
-        for y in range(CELL):
-            for x in range(CELL):
-                d = int((noise.next() - 0.5) * 14)
-                c = tuple(max(0, min(255, v + d)) for v in base)
-                px[cy * CELL + y][cx * CELL + x] = (*c, alpha)
+def render_atlas(refs, size):
+    px = [[(0, 0, 0, 0) for _ in range(size)] for _ in range(size)]
+    for k, f in enumerate(refs):
+        w, h, x0, y0 = f.rect
+        alpha = ALPHA.get(f.material, 255)
+        tex = paint(f, w, h, 7919 * k + 17)
+        for y in range(h):
+            for x in range(w):
+                c = tex[y][x]
+                px[y0 + y][x0 + x] = (c[0], c[1], c[2], c[3] if len(c) == 4 else alpha)
     return px
 
 
-# ---------------------------------------------------------------- writing
+# ---------------------------------------------------------------- the project
 
-def write_obj(path: Path, faces, cell_of, note: str):
-    lines = [f"# {note}", "# generated by devtools/art/build.py; the source bundle is under devtools/art/src"]
-    v_index = {}
-    vs = []
-    vts = []
-    vt_index = {}
-    by_material = defaultdict(list)
-    for f in faces:
-        by_material[f.material].append(f)
-    for m in sorted(by_material):
-        cx, cy = cell_of[m]
-        for f in by_material[m]:
-            for (x, y, z), (fu, fv) in zip(f.corners, f.uv):
-                k = (round(x, 4), round(y, 4), round(z, 4))
-                if k not in v_index:
-                    v_index[k] = len(vs) + 1
-                    vs.append(k)
-                u = (cx + fu) / GRID
-                w = 1.0 - (cy + 1 - fv) / GRID
-                t = (round(u, 5), round(w, 5))
-                if t not in vt_index:
-                    vt_index[t] = len(vts) + 1
-                    vts.append(t)
-    for x, y, z in vs:
-        lines.append(f"v {x:.4f} {y:.4f} {z:.4f}")
-    for u, w in vts:
-        lines.append(f"vt {u:.5f} {w:.5f}")
-    for m in sorted(by_material):
-        cx, cy = cell_of[m]
-        lines.append(f"usemtl {m}")
-        for f in by_material[m]:
-            ref = []
-            for (x, y, z), (fu, fv) in zip(f.corners, f.uv):
-                vi = v_index[(round(x, 4), round(y, 4), round(z, 4))]
-                u = (cx + fu) / GRID
-                w = 1.0 - (cy + 1 - fv) / GRID
-                ti = vt_index[(round(u, 5), round(w, 5))]
-                ref.append(f"{vi}/{ti}")
-            lines.append("f " + " ".join(ref))
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+def project(name, cubes, size, png):
+    """A Blockbench project in the free format: the cubes, an outliner of folders, the one texture embedded."""
+    elements = []
+    for c in cubes:
+        faces = {}
+        for ref in c.refs:
+            w, h, x0, y0 = ref.rect
+            faces[ref.direction] = {"uv": [x0, y0, x0 + w, y0 + h], "texture": 0}
+        elements.append({
+            "name": c.name, "box_uv": False, "rescale": False, "locked": False, "light_emission": 0, "render_order": "default",
+            "allow_mirror_modeling": True, "from": list(c.lo), "to": list(c.hi), "autouv": 0, "color": 0,
+            "origin": list(c.origin), "rotation": list(c.rotation), "faces": faces, "type": "cube", "uuid": c.uuid,
+        })
+    root = []
+    folders = {}
+
+    def folder(path):
+        if path in folders:
+            return folders[path]
+        node = {"name": path.split("/")[-1], "origin": [0, 0, 0], "color": 0, "uuid": str(uuidlib.uuid5(uuidlib.NAMESPACE_URL, name + "/" + path)),
+                "export": True, "mirror_uv": False, "isOpen": False, "locked": False, "visibility": True, "autouv": 0, "children": []}
+        folders[path] = node
+        parent = path.rsplit("/", 1)[0] if "/" in path else None
+        (folder(parent)["children"] if parent else root).append(node)
+        return node
+
+    for c in cubes:
+        folder(c.folder)["children"].append(c.uuid)
+    texture = {
+        "path": "", "name": f"{name}.png", "folder": "", "namespace": "", "id": "0", "width": size, "height": size,
+        "uv_width": size, "uv_height": size, "particle": False, "render_mode": "default", "render_sides": "auto",
+        "frame_time": 1, "frame_order_type": "loop", "frame_order": "", "frame_interpolate": False, "visible": True,
+        "internal": True, "saved": False, "uuid": str(uuidlib.uuid5(uuidlib.NAMESPACE_URL, name + "/texture")),
+        "relative_path": "", "source": "data:image/png;base64," + base64.b64encode(png).decode("ascii"),
+    }
+    return {
+        "meta": {"format_version": "4.10", "model_format": "free", "box_uv": False},
+        "name": name, "model_identifier": "", "visible_box": [1, 1, 0], "variable_placeholders": "", "variable_placeholder_buttons": [],
+        "unhandled_root_fields": {}, "resolution": {"width": size, "height": size},
+        "elements": elements, "outliner": root, "textures": [texture],
+    }
 
 
 def write_json(path: Path, data) -> None:
@@ -374,57 +650,100 @@ def write_json(path: Path, data) -> None:
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
 
+def build(name, cubes):
+    refs = face_refs(cubes)
+    size = layout(refs)
+    png = png_bytes(size, size, render_atlas(refs, size))
+    write_json(ASSETS / f"vanillawheels/mesh/{name}.bbmodel", project(name, cubes, size, png))
+    return len(cubes), size
+
+
 # ---------------------------------------------------------------- the profile
 
+# A rider's camera sits 1.02 blocks (16 px) above the seat point: the player's vehicle attachment is
+# 0.6 below it and the eye 1.62 above that. The eye lands at 46, over the binnacle and under the header.
+SEAT_Y = 30
+SPEED_PIVOT = [8.0, 41.0, 9.6]
+FUEL_PIVOT = [12.8, 41.0, 9.6]
+
+
 def profile():
-    roof = 32 + ROOF_RISE
-    seat_y = roof - 2 - 26
     return {
         "mesh": "trailblazer:trailblazer",
         "wheel_mesh": "trailblazer:trailblazer_wheel",
-        "texture": "trailblazer:textures/entity/trailblazer.png",
         "scale": 0.0625,
-        "handedness": "left",
-        "body": {"width": 2.75, "length": 5.45, "height": roof / 16,
-                 "parts": [{"at": [0, 3, 22], "width": 2.75, "height": 1.35}, {"at": [0, 3, -26], "width": 2.6, "height": 1.4},
-                           {"at": [0, 3, 40], "width": 2.4, "height": 1.0}]},
-        "seats": [{"at": [-8, seat_y, 6], "driver": True}, {"at": [8, seat_y, 6]}, {"at": [-8, seat_y, -8]}, {"at": [8, seat_y, -8]}],
-        "wheels": {"radius": 12, "positions": [{"forward": 23.5, "right": -18, "steers": True}, {"forward": 23.5, "right": 18, "steers": True},
-                                              {"forward": -22.5, "right": -18}, {"forward": -22.5, "right": 18}]},
+        "handedness": "right",
+        "body": {"width": 2.75, "length": 6.9, "height": 3.5,
+                 "parts": [{"at": [0, 10, 35], "width": 3.4, "height": 1.5}, {"at": [0, 10, -36], "width": 3.4, "height": 1.5}]},
+        "seats": [{"at": [8, SEAT_Y, 1], "driver": True}, {"at": [-8, SEAT_Y, 1]}, {"at": [8, SEAT_Y, -18]}, {"at": [-8, SEAT_Y, -18]}],
+        "wheels": {"radius": WHEEL_R, "positions": [{"forward": FRONT_AXLE, "right": -TRACK, "steers": True}, {"forward": FRONT_AXLE, "right": TRACK, "steers": True},
+                                                   {"forward": REAR_AXLE, "right": -TRACK}, {"forward": REAR_AXLE, "right": TRACK}]},
         "engine": {"max_speed": 0.9, "acceleration": 0.02, "reverse_speed": 0.3, "brake": 0.05, "drag": 0.01},
-        "handling": {"grip": 0.85, "steer_degrees": 32, "drift_grip": 0.4, "drift_boost": 0.3, "drift_charge_ticks": 40},
+        "handling": {"grip": 0.85, "steer_degrees": 32, "drift_grip": 0.12, "drift_boost": 0.3, "drift_charge_ticks": 40},
         "climb": 2.0,
         "mass": 1.45,
         "fuel": {"capacity": 24000},
-        "storage": {"rows": 6, "region": {"y_min": 14, "z_min": -31, "z_max": -12}},
-        # Needles point up at rest. Seen by the driver, the speedometer sweeps clockwise from eight o'clock
-        # to four; the fuel gauge from eight (empty) to four (full). The bundle is mirrored at load, which
-        # negates every angle, so these are the driver's angles with their signs flipped.
-        "gauges": [{"kind": "speed", "part": {"material": "needle", "x_max": -5}, "pivot": list(SPEED_PIVOT), "axis": [0, 0, 1], "zero": 2.094, "sweep": -4.189},
-                   {"kind": "fuel", "part": {"material": "needle", "x_min": -5}, "pivot": list(FUEL_PIVOT), "axis": [0, 0, 1], "zero": 2.094, "sweep": -4.189}],
-        "headlights": {"at": [[-13, 15.5, 40.5], [13, 15.5, 40.5]], "part": {"material": "gauge", "z_min": 36}, "range": 10},
+        "storage": {"rows": 6, "region": {"z_max": -26}, "chest": {"at": [0, 16, -42], "yaw": 180}},
+        # The dials face the driver (-z); needles point up at rest. Seen by the driver, positive about +z is
+        # clockwise, so both sweep clockwise from eight o'clock (-120 degrees) through four (+120).
+        "gauges": [{"kind": "speed", "part": {"group": "needle_speed"}, "pivot": SPEED_PIVOT, "axis": [0, 0, 1], "zero": -2.094, "sweep": 4.189},
+                   {"kind": "fuel", "part": {"group": "needle_fuel"}, "pivot": FUEL_PIVOT, "axis": [0, 0, 1], "zero": -2.094, "sweep": 4.189}],
+        "headlights": {"at": [[15, 32.5, 47.5], [-15, 32.5, 47.5]], "part": {"group": "lenses"}, "range": 10},
         "horn": "vanillawheels:horn.truck",
-        "radio": {"at": [3, 26, 14]},
-        "hitch": {"rear": [0, 7.5, -42]},
-        "paint": {"part": {"material": ["body_blue", "body_blue_hi", "body_blue_dark", "body_blue_shadow"]}, "default": "light_blue"},
-        "glass": {"material": ["glass", "glass_hi"]},
+        "radio": {"at": [-4, 37, 12]},
+        "hitch": {"rear": [0, 21, -60]},
+        "paint": {"part": {"group": "body"}, "default": "light_blue"},
+        "glass": {"group": "windshield"},
         "sounds": {"engine": "vanillawheels:engine.petrol"},
     }
 
 
+LIGHT_BLUE = tuple(round(c + (255 - c) * 0.25) for c in (58, 179, 218))  # the dye, lifted as Vanilla Wheels lifts every paint
+
+
+def preview(truck_cubes, wheel_cubes, wheel_slots):
+    """
+    A project for looking at, never shipped: the truck with its four wheels
+    in place and the body tinted as the light-blue dye tints it in the
+    game, so Blockbench shows what a player sees. Written under
+    devtools/art/preview/.
+    """
+    cubes = list(truck_cubes)
+    for k, (forward, right) in enumerate(wheel_slots):
+        for w in wheel_cubes:
+            side = "right" if right > 0 else "left"
+            dx, dy, dz = -right, WHEEL_R, forward
+            c = Cube(f"{w.name}_{k}", f"wheels/wheel_{k}_{side}", add(w.lo, (dx, dy, dz)), add(w.hi, (dx, dy, dz)), w.material,
+                     w.rotation, add(w.origin, (dx, dy, dz)), dict(w.faces), dict(w.decals))
+            cubes.append(c)
+    refs = face_refs(cubes)
+    size = layout(refs)
+    px = render_atlas(refs, size)
+    for f in refs:
+        if f.material == "body":
+            w, h, x0, y0 = f.rect
+            for y in range(y0, y0 + h):
+                for x in range(x0, x0 + w):
+                    r, g, b, a = px[y][x]
+                    px[y][x] = (r * LIGHT_BLUE[0] // 255, g * LIGHT_BLUE[1] // 255, b * LIGHT_BLUE[2] // 255, a)
+    out = ROOT / "devtools/art/preview/trailblazer_preview.bbmodel"
+    write_json(out, project("trailblazer_preview", cubes, size, png_bytes(size, size, px)))
+    return out
+
+
 def main(argv) -> None:
-    colours = read_mtl(SRC / "trailblazer_frame.mtl")
-    frame = repair(read_obj(SRC / "trailblazer_frame.obj"))
-    wheel = read_obj(SRC / "trailblazer_wheel.obj")
-    materials = sorted(set(colours) | {f.material for f in frame} | {f.material for f in wheel})
-    cell_of = cells(materials)
-    write_obj(ASSETS / "vanillawheels/mesh/trailblazer.obj", frame, cell_of, "The Trailblazer, pixels, +Z forward, left-handed")
-    write_obj(ASSETS / "vanillawheels/mesh/trailblazer_wheel.obj", wheel, cell_of, "The Trailblazer's wheel, pixels, axle along X")
-    write_png(ASSETS / "textures/entity/trailblazer.png", CELL * GRID, CELL * GRID, atlas(materials, colours))
+    n, size = build("trailblazer", truck())
+    truck_cubes = list(CUBES)
+    wn, wsize = build("trailblazer_wheel", wheel())
+    wheel_cubes = list(CUBES)
+    slots = [(w["forward"], w["right"]) for w in profile()["wheels"]["positions"]]
+    print("preview:", preview(truck_cubes, wheel_cubes, slots))
     write_json(DATA / "vanillawheels/vehicle/trailblazer.json", profile())
     write_json(ASSETS / "lang/en_us.json", {"vehicle.trailblazer.trailblazer": "Trailblazer"})
-    print(f"wrote the truck ({len(frame)} faces), the wheel ({len(wheel)} faces), the atlas ({len(materials)} cells), the profile")
-    print("seat points at y", profile()["seats"][0]["at"][1], "; dial pivots", SPEED_PIVOT, FUEL_PIVOT)
+    for stale in ("trailblazer.obj", "trailblazer_wheel.obj"):
+        (ASSETS / "vanillawheels/mesh" / stale).unlink(missing_ok=True)
+    (ASSETS / "textures/entity/trailblazer.png").unlink(missing_ok=True)
+    print(f"wrote the truck ({n} cubes, a {size} atlas), the wheel ({wn} cubes, a {wsize} atlas), the profile")
 
 
 if __name__ == "__main__":

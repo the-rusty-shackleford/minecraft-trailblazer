@@ -1,94 +1,84 @@
 {
   "mesh": "trailblazer:trailblazer",
   "wheel_mesh": "trailblazer:trailblazer_wheel",
-  "texture": "trailblazer:textures/entity/trailblazer.png",
   "scale": 0.0625,
-  "handedness": "left",
+  "handedness": "right",
   "body": {
     "width": 2.75,
-    "length": 5.45,
-    "height": 2.5,
+    "length": 6.9,
+    "height": 3.5,
     "parts": [
       {
         "at": [
           0,
-          3,
-          22
+          10,
+          35
         ],
-        "width": 2.75,
-        "height": 1.35
+        "width": 3.4,
+        "height": 1.5
       },
       {
         "at": [
           0,
-          3,
-          -26
+          10,
+          -36
         ],
-        "width": 2.6,
-        "height": 1.4
-      },
-      {
-        "at": [
-          0,
-          3,
-          40
-        ],
-        "width": 2.4,
-        "height": 1.0
+        "width": 3.4,
+        "height": 1.5
       }
     ]
   },
   "seats": [
     {
       "at": [
-        -8,
-        12.0,
-        6
+        8,
+        30,
+        1
       ],
       "driver": true
     },
     {
       "at": [
+        -8,
+        30,
+        1
+      ]
+    },
+    {
+      "at": [
         8,
-        12.0,
-        6
+        30,
+        -18
       ]
     },
     {
       "at": [
         -8,
-        12.0,
-        -8
-      ]
-    },
-    {
-      "at": [
-        8,
-        12.0,
-        -8
+        30,
+        -18
       ]
     }
   ],
   "wheels": {
-    "radius": 12,
+    "radius": 15.0,
     "positions": [
       {
-        "forward": 23.5,
-        "right": -18,
+        "forward": 33,
+        "right": -24,
         "steers": true
       },
       {
-        "forward": 23.5,
-        "right": 18,
+        "forward": 33,
+        "right": 24,
         "steers": true
       },
       {
-        "forward": -22.5,
-        "right": -18
+        "forward": -37,
+        "right": -24
       },
       {
-        "forward": -22.5,
-        "right": 18
+        "forward": -37,
+        "right": 24
       }
     ]
   },
@@ -102,7 +92,7 @@
   "handling": {
     "grip": 0.85,
     "steer_degrees": 32,
-    "drift_grip": 0.4,
+    "drift_grip": 0.12,
     "drift_boost": 0.3,
     "drift_charge_ticks": 40
   },
@@ -114,101 +104,96 @@
   "storage": {
     "rows": 6,
     "region": {
-      "y_min": 14,
-      "z_min": -31,
-      "z_max": -12
+      "z_max": -26
+    },
+    "chest": {
+      "at": [
+        0,
+        16,
+        -42
+      ],
+      "yaw": 180
     }
   },
   "gauges": [
     {
       "kind": "speed",
       "part": {
-        "material": "needle",
-        "x_max": -5
+        "group": "needle_speed"
       },
       "pivot": [
-        -8.0,
-        28.0,
-        13.650000000000006
+        8.0,
+        41.0,
+        9.6
       ],
       "axis": [
         0,
         0,
         1
       ],
-      "zero": 2.094,
-      "sweep": -4.189
+      "zero": -2.094,
+      "sweep": 4.189
     },
     {
       "kind": "fuel",
       "part": {
-        "material": "needle",
-        "x_min": -5
+        "group": "needle_fuel"
       },
       "pivot": [
-        -2.0,
-        28.0,
-        13.650000000000006
+        12.8,
+        41.0,
+        9.6
       ],
       "axis": [
         0,
         0,
         1
       ],
-      "zero": 2.094,
-      "sweep": -4.189
+      "zero": -2.094,
+      "sweep": 4.189
     }
   ],
   "headlights": {
     "at": [
       [
-        -13,
-        15.5,
-        40.5
+        15,
+        32.5,
+        47.5
       ],
       [
-        13,
-        15.5,
-        40.5
+        -15,
+        32.5,
+        47.5
       ]
     ],
     "part": {
-      "material": "gauge",
-      "z_min": 36
+      "group": "lenses"
     },
     "range": 10
   },
   "horn": "vanillawheels:horn.truck",
   "radio": {
     "at": [
-      3,
-      26,
-      14
+      -4,
+      37,
+      12
     ]
   },
   "hitch": {
     "rear": [
       0,
-      7.5,
-      -42
+      21,
+      -60
     ]
   },
   "paint": {
     "part": {
-      "material": [
-        "body_blue",
-        "body_blue_hi",
-        "body_blue_dark",
-        "body_blue_shadow"
-      ]
+      "group": "body"
     },
     "default": "light_blue"
   },
   "glass": {
-    "material": [
-      "glass",
-      "glass_hi"
-    ]
+    "group": "windshield"
   },
   "sounds": {
     "engine": "vanillawheels:engine.petrol"

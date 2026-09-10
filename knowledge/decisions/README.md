@@ -13,3 +13,4 @@ tags: [index]
 | Id | Topic |
 |----|-------|
 | D-0001 | The cab repair is a scripted edit of the bundle, not a re-export and not a runtime fix |
+| D-0002 | The truck is designed as a Blockbench project in code, to the reference, and reviewed as renders (supersedes D-0001) |
