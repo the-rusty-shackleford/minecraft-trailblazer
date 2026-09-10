@@ -5,14 +5,14 @@
   "handedness": "right",
   "body": {
     "width": 2.75,
-    "length": 6.9,
-    "height": 3.5,
+    "length": 7.8,
+    "height": 3.7,
     "parts": [
       {
         "at": [
           0,
           10,
-          35
+          38
         ],
         "width": 3.4,
         "height": 1.5
@@ -21,7 +21,7 @@
         "at": [
           0,
           10,
-          -36
+          -45
         ],
         "width": 3.4,
         "height": 1.5
@@ -48,37 +48,37 @@
       "at": [
         8,
         30,
-        -18
+        -29
       ]
     },
     {
       "at": [
         -8,
         30,
-        -18
+        -29
       ]
     }
   ],
   "wheels": {
-    "radius": 15.0,
+    "radius": 17.0,
     "positions": [
       {
-        "forward": 33,
-        "right": -24,
+        "forward": 36,
+        "right": -22,
         "steers": true
       },
       {
-        "forward": 33,
-        "right": 24,
+        "forward": 36,
+        "right": 22,
         "steers": true
       },
       {
-        "forward": -37,
-        "right": -24
+        "forward": -45,
+        "right": -22
       },
       {
-        "forward": -37,
-        "right": 24
+        "forward": -45,
+        "right": 22
       }
     ]
   },
@@ -104,13 +104,13 @@
   "storage": {
     "rows": 6,
     "region": {
-      "z_max": -26
+      "z_max": -38
     },
     "chest": {
       "at": [
         0,
         16,
-        -42
+        -52
       ],
       "yaw": 180
     }
@@ -156,14 +156,14 @@
   "headlights": {
     "at": [
       [
-        15,
-        32.5,
-        47.5
+        15.5,
+        33.5,
+        51.5
       ],
       [
-        -15,
-        32.5,
-        47.5
+        -15.5,
+        33.5,
+        51.5
       ]
     ],
     "part": {
@@ -183,7 +183,7 @@
     "rear": [
       0,
       21,
-      -60
+      -68
     ]
   },
   "paint": {

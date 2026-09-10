@@ -37,10 +37,15 @@ a half), climb 2 blocks, 32 degrees of steering lock.
 
 The truck is a Blockbench project designed in code, to the reference Rusty gave: an
 open-top, roll-caged, light-blue Jeep with a seven-slot grille between slatted lamps,
-thick angular black fenders over big treaded tyres, a raked windshield in a silver
-frame, a chamfered bumper with fog lamps and a winch, black seats, side mirrors -- given
-four doors, a dash with two dials, a chest in the bed and a hitch. `devtools/art/build.py`
-writes three projects and the profile:
+black arch fenders hugging big treaded tyres, a raked windshield in a silver frame
+under a flat cage with an A-frame hoop behind the front seats, a deep nose over a low
+chamfered bumper with hook lamps and a winch, black seats, side mirrors -- given four
+doors, a dash with two dials, a chest in the bed and a hitch. Its datum lines are
+measured off the reference against its own tub: the tyres seven tenths of the tub's
+height across, the fenders two pixels under the bonnet line, the cage eighteen pixels
+over the tub, the grille panel running twenty-two pixels down to a bumper below the
+axle line. The wheelbase is the one thing that is not the reference's: it is longer by
+a rear door. `devtools/art/build.py` writes three projects and the profile:
 
 - `src/main/resources/assets/trailblazer/vanillawheels/mesh/trailblazer.bbmodel`, the
   body, and `trailblazer_wheel.bbmodel`, one wheel: what the game loads, as saved.
@@ -51,14 +56,17 @@ writes three projects and the profile:
   profile, whose seat points, dial pivots, lamp positions and wheel slots come from the
   same constants as the cubes.
 
-Every face has its own patch of the one embedded texture, painted by the script: a calm
-pixel noise per material, and drawn detail where a face is something (the grille's
-slots, the lamps' slats, the bonnet's vents, the door seams, the tail lights, the glass's
-glare streak with the pane nearly clear), while the tread, the rims and the dials are
-painted by where each texel is in the world, so a turned slab of a tyre gets its share
-of the pattern. Body faces are greys the dye multiplies into. Selectors in the profile
-name folders and elements (`body`, `lenses`, `windshield`, `needle_speed`), never
-materials.
+Every face has its own patch of the one embedded texture, painted by the script: the
+reference's finish -- a broad, calm mottle per material and a one-pixel light bevel
+along every top edge with a dark one along every bottom -- and drawn detail where a
+face is something (the grille's slots, the lamps' slats, the bonnet's vents, the door
+seams, the tail lights, the glass nearly clear with the reference's white corner
+brackets), while the tread, the rims and the dials are painted by where each texel is
+in the world, so a turned slab of a tyre gets its share of the pattern. Body faces are
+cool greys the dye multiplies into, a shade more blue than red, because light-blue dye
+lifted toward white still lands short of the reference's blue and a swatch can only
+take away. Selectors in the profile name folders and elements (`body`, `lenses`,
+`windshield`, `needle_speed`), never materials.
 
 Two conventions bit and are written down in the script: Blockbench's frame is the
 game's, +Z the nose, +X the vehicle's left, and a turn about +X by a positive angle
@@ -80,8 +88,12 @@ uv run --no-project python devtools/art/build.py     # regenerate the projects a
 Look before you build: open the preview project in Blockbench and turn it, or drive
 Blockbench from a script (`--remote-debugging-port` and `Preview.selected.screenshot`)
 and look at the renders from the front quarter, the side, the front, the rear quarter
-and close up on every joint. The windshield that did not meet its frame and the frame
-that leaned forward were both plain in a render and invisible in the numbers.
+and close up on every joint. Then put the booth's reference shot -- the front-left
+quarter at a modeller's 45-degree field of view -- beside the reference image at the
+same scale and compare part by part; the shaders change every colour, so measure the
+hood's and the cage's against the reference's rather than trusting the swatch. The
+windshield that did not meet its frame, the frame that leaned forward, and a whole
+truck lit inside out were each plain in a picture and invisible in the numbers.
 
 Six gametests on a headless server: the profile is registered as described; the truck
 reaches speed and climbs a two-block step; runs a cow over for the damage its mass and

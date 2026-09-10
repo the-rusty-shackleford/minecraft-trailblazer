@@ -43,6 +43,11 @@ renders before any booth; the bundle is gone.
 ## Next
 
 1.0.0 (2026-09-09): the repaired bundle, which Rusty called the Temu version. 1.1.0
-(2026-09-09): the Blockbench truck. Rusty is sending the preview to a designer; their
-notes come next, then the tuning session: top speed, drift, damage, the dial size and the
-seat position are numbers to watch, not to plan.
+(2026-09-09): the Blockbench truck. 1.2.0 (2026-09-09): the truck matched to the
+reference part by part from side-by-side frames -- Rusty's bar is the exterior exactly
+as the reference's, four doors and the chest the only differences -- with the
+protocol's inside-out lighting fixed on the way (Vanilla Wheels 1.3.1). Rusty's friend
+made a pass in Blockbench too (fenders down onto the tyres, angled arch ends, a chest
+modelled in the bed), all of which the rebuilt model already has. Next: the tuning
+session -- top speed, drift, damage, the dial size and the seat position are numbers to
+watch, not to plan.

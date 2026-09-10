@@ -74,12 +74,14 @@ class Noise:
 
 # ---------------------------------------------------------------- materials
 
-# Three tones each: base, light, dark. The body's are greys: the dye multiplies in.
+# Three tones each: base, light, dark. The body's are greys the dye multiplies into -- cool greys, a shade
+# more blue than red, since the light-blue dye lifted toward white still lands short of the reference's blue and
+# a swatch can only take away.
 TONES = {
-    "body": ((236, 236, 236), (250, 250, 250), (214, 214, 214)),
-    "rubber": ((38, 40, 46), (56, 58, 64), (26, 28, 32)),
-    "tyre": ((40, 42, 46), (92, 94, 100), (26, 28, 30)),
-    "metal": ((166, 170, 178), (196, 200, 208), (130, 134, 142)),
+    "body": ((214, 230, 252), (236, 246, 255), (192, 208, 234)),
+    "rubber": ((36, 38, 44), (58, 60, 66), (24, 26, 30)),
+    "tyre": ((40, 42, 46), (104, 106, 112), (26, 28, 30)),
+    "metal": ((174, 178, 186), (206, 210, 218), (138, 142, 150)),
     "metal_dark": ((92, 96, 104), (110, 114, 122), (72, 76, 84)),
     "seat": ((30, 30, 34), (44, 44, 48), (20, 20, 22)),
     "seat_light": ((74, 76, 82), (90, 92, 98), (60, 62, 66)),
@@ -92,7 +94,7 @@ TONES = {
     "hub": ((150, 152, 158), (174, 176, 182), (124, 126, 132)),
 }
 ALPHA = {"glass": 90}
-GLASS_PANE, GLASS_EDGE, GLASS_STREAK = 50, 110, 150
+GLASS_PANE, GLASS_EDGE, GLASS_STREAK = 50, 110, 190
 DETAIL = {"dial": 4, "lens": 2, "rim": 2, "hubcap": 2}
 
 
@@ -184,25 +186,30 @@ def cube(name, folder, x0, y0, z0, x1, y1, z1, material, rotation=(0, 0, 0), ori
 
 # ---------------------------------------------------------------- the truck
 
-WHEEL_R = 15.0
-WHEEL_W = 12.0
-FRONT_AXLE = 33
-REAR_AXLE = -37
-TRACK = 24
-# The body's datum lines, measured off the reference against its tyre: the bonnet and the tub's top edge at
-# 1.27 tyres over the ground, the fenders' tops three pixels under that, the cage's top at 1.87 tyres.
-TUB_TOP = 38
-FENDER_TOP = 35
-CAGE_TOP = 56
-NOSE = 46
-TAIL = -52
+WHEEL_R = 17.0
+WHEEL_W = 11.0
+FRONT_AXLE = 36
+REAR_AXLE = -45
+TRACK = 22
+# The body's datum lines, measured off the reference against its tub: the tyres seven tenths of the tub's height
+# across, the bed sides' top edge and the raised bonnet's top a fifth of a tyre over the tyre's top, the fenders'
+# tops two pixels under that, hugging the tyre, the cage's top eighteen pixels over the tub. The wheelbase is
+# the one thing that is not the reference's: it is longer by a rear door.
+TUB_TOP = 40
+HOOD_TOP = 40
+FENDER_TOP = 38
+FENDER_T = 3
+CAGE_TOP = 59
+NOSE = 50
+TAIL = -60
+HOOP = -28
 
 
 def truck():
     CUBES.clear()
     B = "body"
-    # --- the tub: floor, sides, tailgate; the doors as proud panels with a seam painted round them; a marker
-    # lamp on each front corner
+    # --- the tub: floor, sides, tailgate; the doors as panels a pixel proud of the sides with a seam painted
+    # round them; a marker lamp on each front corner
     cube("floor", "tub", -18, 12, TAIL + 2, 18, 16, 16, "floor")
     cube("side_left", "body/tub", 18, 16, TAIL, 21, TUB_TOP, 16, B, decals={"left": "flank"})
     cube("side_right", "body/tub", -21, 16, TAIL, -18, TUB_TOP, 16, B, decals={"right": "flank"})
@@ -210,102 +217,110 @@ def truck():
     cube("tail_sill", "body/tub", -21, 12, TAIL, 21, 16, TAIL + 2, B)
     for sx, side in ((1, "left"), (-1, "right")):
         x0, x1 = (21, 22) if sx > 0 else (-22, -21)
-        cube(f"door_front_{side}", "body/doors", x0, 17, -4, x1, TUB_TOP - 1, 11, B, decals={side: "door"})
-        cube(f"door_rear_{side}", "body/doors", x0, 17, -21, x1, TUB_TOP - 1, -5, B, decals={side: "door"})
+        cube(f"door_front_{side}", "body/doors", x0, 20, -6, x1, TUB_TOP - 1, 10, B, decals={side: "door"})
+        cube(f"door_rear_{side}", "body/doors", x0, 20, -26, x1, TUB_TOP - 1, -10, B, decals={side: "door"})
         hx0, hx1 = (22, 23) if sx > 0 else (-23, -22)
-        cube(f"handle_front_{side}", "handles", hx0, 30, 6, hx1, 31, 10, "metal")
-        cube(f"handle_rear_{side}", "handles", hx0, 30, -11, hx1, 31, -7, "metal")
+        cube(f"handle_front_{side}", "handles", hx0, 31, 5, hx1, 32, 9, "metal")
+        cube(f"handle_rear_{side}", "handles", hx0, 31, -15, hx1, 32, -11, "metal")
         mx0, mx1 = (19, 21.5) if sx > 0 else (-21.5, -19)
-        cube(f"marker_{side}", "lights", mx0, 26, NOSE - 3, mx1, 28, NOSE - 1, "metal")
-    # --- the bonnet over the engine bay, the vents at its cowl; the nose is a slab whose face is the grille,
-    # the lamps proud of it at its top corners
-    cube("bonnet", "body/bonnet", -20, 30, 12, 20, TUB_TOP, NOSE - 2, B, decals={"top": "bonnet"})
-    cube("engine_bay", "body/bonnet", -20, 21, 16, 20, 30, NOSE - 2, B)
-    cube("nose", "body/bonnet", -20, 21, NOSE - 2, 20, TUB_TOP, NOSE, B, decals={"front": "grille"})
+        cube(f"marker_{side}", "lights", mx0, 27, NOSE - 3, mx1, 29, NOSE - 1, "metal")
+    # --- the bonnet: a raised slab a pixel in from the body's sides, its vents at the cowl end; the engine bay
+    # under it; the nose a slab whose face is the grille, the lamps proud of it at its top corners; the cowl
+    # behind the bonnet, which the windshield's base rail sits on
+    cube("bonnet", "body/bonnet", -19, HOOD_TOP - 3, 16, 19, HOOD_TOP, NOSE - 1, B, decals={"top": "bonnet"})
+    cube("engine_bay", "body/bonnet", -20, 16, 16, 20, HOOD_TOP - 3, NOSE - 2, B)
+    cube("nose", "body/bonnet", -20, 16, NOSE - 2, 20, HOOD_TOP - 2, NOSE, B, decals={"front": "grille"})
+    cube("cowl", "body/bonnet", -20, 34, 8, 20, HOOD_TOP - 2, 16, B)
     for sx, side in ((1, "left"), (-1, "right")):
         x0, x1 = (12, 18) if sx > 0 else (-18, -12)
-        cube(f"lens_{side}", "lamps/lenses", x0, 29, NOSE, x1, 36, NOSE + 1, "lamp", decals={"front": "lamp"})
-    # --- fenders: black, a thick flat top three pixels under the bonnet line, a wedge angled down to the bumper
-    # ahead of the front wheel and behind the rear one, a solid block under the front wedge beside the grille,
-    # a straight leg down to the rocker behind the front wheel and ahead of the rear one (a door sits right
-    # behind each arch, so there is no room for the reference's angled one); the rocker step between them
+        cube(f"lens_{side}", "lamps/lenses", x0, 30, NOSE, x1, 37, NOSE + 1, "lamp", decals={"front": "lamp"})
+    # --- fenders: black shells three pixels thick, each a flat top over the wheel with a slope angled down at
+    # each end -- the front fender's nose slope runs down to the bumper and a block fills below it beside the
+    # grille; its rear slope ends ahead of the front door and a leg drops from there to the rocker; the rear
+    # fender mirrors it. The rocker step between the legs.
     for sx, side in ((1, "left"), (-1, "right")):
-        x0, x1 = (20, 29) if sx > 0 else (-29, -20)
+        x0, x1 = (20, 25) if sx > 0 else (-25, -20)
         fx = (x0 + x1) / 2
-        cube(f"fender_front_{side}", "fenders", x0, FENDER_TOP - 4, 12, x1, FENDER_TOP, NOSE, "rubber")
-        cube(f"fender_nose_{side}", "fenders", x0, FENDER_TOP - 4, NOSE, x1, FENDER_TOP, NOSE + 12, "rubber", rotation=(45, 0, 0), origin=(fx, FENDER_TOP, NOSE))
-        cube(f"fender_front_block_{side}", "fenders", x0, 22, NOSE - 2, x1, FENDER_TOP - 4, NOSE + 1, "rubber")
         lx0, lx1 = (x1 - 3, x1) if sx > 0 else (x0, x0 + 3)
-        cube(f"fender_leg_front_{side}", "fenders", lx0, 15, 12, lx1, FENDER_TOP - 4, 15, "rubber")
-        cube(f"fender_rear_{side}", "fenders", x0, FENDER_TOP - 4, TAIL, x1, FENDER_TOP, -21, "rubber")
-        cube(f"fender_tail_{side}", "fenders", x0, FENDER_TOP - 4, TAIL - 9, x1, FENDER_TOP, TAIL, "rubber", rotation=(-45, 0, 0), origin=(fx, FENDER_TOP, TAIL))
-        cube(f"fender_leg_rear_{side}", "fenders", lx0, 15, -24, lx1, FENDER_TOP - 4, -21, "rubber")
-        sx0, sx1 = (21, 28) if sx > 0 else (-28, -21)
-        cube(f"step_{side}", "fenders", sx0, 12, -24, sx1, 15, 15, "metal_dark")
-    # --- bumpers with chamfered ends; hook lamps and a winch on the front one, the hitch ball on the rear
-    BUMPER = (13, 21)
-    cube("bumper_front", "bumpers", -28, BUMPER[0], NOSE, 28, BUMPER[1], NOSE + 8, "metal", decals={"front": "bumper"})
-    cube("bumper_rear", "bumpers", -28, BUMPER[0], TAIL - 6, 28, BUMPER[1], TAIL, "metal", decals={"back": "bumper"})
+        top = FENDER_TOP
+        bot = FENDER_TOP - FENDER_T
+        # front
+        cube(f"fender_front_{side}", "fenders", x0, bot, 22, x1, top, NOSE - 2, "rubber")
+        cube(f"fender_front_nose_{side}", "fenders", x0, bot, NOSE - 2, x1, top, NOSE + 12, "rubber", rotation=(38, 0, 0), origin=(fx, top, NOSE - 2))
+        cube(f"fender_front_block_{side}", "fenders", x0, 16, NOSE + 4, x1, 29, NOSE + 8, "rubber")
+        cube(f"fender_front_tail_{side}", "fenders", x0, bot, 12, x1, top, 22, "rubber", rotation=(-45, 0, 0), origin=(fx, top, 22))
+        cube(f"fender_front_leg_{side}", "fenders", lx0, 15, 12, lx1, 32, 15, "rubber")
+        # rear
+        cube(f"fender_rear_{side}", "fenders", x0, bot, -58, x1, top, -32, "rubber")
+        cube(f"fender_rear_nose_{side}", "fenders", x0, bot, -32, x1, top, -22, "rubber", rotation=(45, 0, 0), origin=(fx, top, -32))
+        cube(f"fender_rear_leg_{side}", "fenders", lx0, 15, -28, lx1, 32, -25, "rubber")
+        cube(f"fender_rear_tail_{side}", "fenders", x0, bot, -66, x1, top, -58, "rubber", rotation=(-45, 0, 0), origin=(fx, top, -58))
+        cube(f"fender_rear_block_{side}", "fenders", x0, 16, -64, x1, 31, -60, "rubber")
+        sx0, sx1 = (21, 25) if sx > 0 else (-25, -21)
+        cube(f"step_{side}", "fenders", sx0, 12, -25, sx1, 15, 12, "floor")
+    # --- bumpers, deep, with chamfered ends; hook lamps and a winch on the front one, the hitch ball on the rear
+    BUMPER = (8, 16)
+    cube("bumper_front", "bumpers", -25, BUMPER[0], NOSE, 25, BUMPER[1], NOSE + 8, "metal", decals={"front": "bumper"})
+    cube("bumper_rear", "bumpers", -25, BUMPER[0], TAIL - 6, 25, BUMPER[1], TAIL, "metal", decals={"back": "bumper"})
     for sx, side in ((1, "left"), (-1, "right")):
-        x0, x1 = (28, 35) if sx > 0 else (-35, -28)
-        cube(f"bumper_end_front_{side}", "bumpers", x0, BUMPER[0], NOSE, x1, BUMPER[1], NOSE + 8, "metal", rotation=(0, 32 * sx, 0), origin=(28 * sx, 17, NOSE + 4), decals={"front": "bumper"})
-        cube(f"bumper_end_rear_{side}", "bumpers", x0, BUMPER[0], TAIL - 6, x1, BUMPER[1], TAIL, "metal", rotation=(0, -32 * sx, 0), origin=(28 * sx, 17, TAIL - 3), decals={"back": "bumper"})
-        fx0, fx1 = (20, 25) if sx > 0 else (-25, -20)
+        x0, x1 = (25, 31) if sx > 0 else (-31, -25)
+        cube(f"bumper_end_front_{side}", "bumpers", x0, BUMPER[0], NOSE, x1, BUMPER[1], NOSE + 8, "metal", rotation=(0, 32 * sx, 0), origin=(25 * sx, 10, NOSE + 4), decals={"front": "bumper"})
+        cube(f"bumper_end_rear_{side}", "bumpers", x0, BUMPER[0], TAIL - 6, x1, BUMPER[1], TAIL, "metal", rotation=(0, -32 * sx, 0), origin=(25 * sx, 10, TAIL - 3), decals={"back": "bumper"})
+        fx0, fx1 = (18, 23) if sx > 0 else (-23, -18)
         cube(f"hook_lamp_{side}", "bumpers", fx0, BUMPER[1], NOSE + 3, fx1, BUMPER[1] + 5, NOSE + 7, "metal", decals={"front": "hook"})
     cube("winch", "bumpers", -7, BUMPER[1], NOSE + 1, 7, BUMPER[1] + 6, NOSE + 6, "metal_dark")
-    cube("winch_drum", "bumpers", -4, BUMPER[1] + 1, NOSE + 6, 4, BUMPER[1] + 5, NOSE + 8, "metal", decals={"front": "drum"})
-    cube("winch_cable", "bumpers", -0.5, BUMPER[0] + 4, NOSE + 8, 0.5, BUMPER[1] + 1, NOSE + 9, "metal_dark")
-    cube("winch_hook", "bumpers", -1.5, BUMPER[0] + 1, NOSE + 7.5, 1.5, BUMPER[0] + 4, NOSE + 9.5, "metal_dark")
-    cube("hitch_post", "bumpers", -1, BUMPER[0] + 1, TAIL - 7, 1, BUMPER[1], TAIL - 4, "metal_dark")
-    cube("hitch_ball", "bumpers", -2, BUMPER[1], TAIL - 8, 2, BUMPER[1] + 2, TAIL - 4, "metal")
+    cube("winch_drum", "bumpers", -3, BUMPER[1] + 1, NOSE + 6, 3, BUMPER[1] + 5, NOSE + 7, "metal", decals={"front": "drum"})
+    cube("winch_cable", "bumpers", -0.5, BUMPER[0] + 4, NOSE + 7, 0.5, BUMPER[1] + 1, NOSE + 8, "metal_dark")
+    cube("winch_hook", "bumpers", -1.5, BUMPER[0] + 1, NOSE + 6.5, 1.5, BUMPER[0] + 4, NOSE + 8.5, "metal_dark")
+    cube("hitch_post", "bumpers", -1, BUMPER[1], TAIL - 7, 1, 20, TAIL - 4, "metal_dark")
+    cube("hitch_ball", "bumpers", -2, 20, TAIL - 8, 2, 22, TAIL - 4, "metal")
     for sx, side in ((1, "left"), (-1, "right")):
         x0, x1 = (13, 19) if sx > 0 else (-19, -13)
-        cube(f"tail_light_{side}", "lights", x0, 27, TAIL - 1, x1, 33, TAIL, "tail", decals={"back": "tail"})
-    cube("exhaust", "bumpers", 9, 11, TAIL - 5, 11, 13, TAIL + 8, "metal_dark")
+        cube(f"tail_light_{side}", "lights", x0, 28, TAIL - 1, x1, 34, TAIL, "tail", decals={"back": "tail"})
+    cube("exhaust", "bumpers", 9, 11, TAIL - 4, 11, 13, TAIL + 8, "metal_dark")
     # --- the windshield: one raked frame -- base rail, two pillars -- turned together about the base's
     # centreline, the glass inset in it, all running up into a level header that is one bar with the cage.
     # A turn about +X by a positive angle carries the top toward +Z, the nose: a windshield leans back, so its
-    # rake is negative. The base rail starts down inside the bonnet and dash so that, turned, no edge of it
-    # lifts clear of them.
+    # rake is negative. The base rail starts down inside the bonnet and cowl so that, turned, no edge of it
+    # lifts clear of them. The pillars are a pixel thinner than the cage's bars, as the reference's are.
     T = 4
+    P = 3
     RAKE = -14
     PIVOT = (0, 40, 14)
     cube("windshield_base", "cage/windshield_frame", -21, 36, 12, 21, 41, 16, "metal", rotation=(RAKE, 0, 0), origin=PIVOT)
     for sx, side in ((1, "left"), (-1, "right")):
-        x0, x1 = (17, 17 + T) if sx > 0 else (-17 - T, -17)
-        cube(f"a_pillar_{side}", "cage/windshield_frame", x0, 41, 12, x1, CAGE_TOP - 1, 16, "metal", rotation=(RAKE, 0, 0), origin=PIVOT)
-    cube("windshield", "windshield", -17, 41, 13.75, 17, CAGE_TOP - T + 1, 14.25, "glass", rotation=(RAKE, 0, 0), origin=PIVOT, decals={"front": "glass", "back": "glass"})
-    pillar_rear = rotate((0, CAGE_TOP - T, 12), PIVOT, (RAKE, 0, 0))[2]
-    pillar_front = rotate((0, CAGE_TOP - 1, 16), PIVOT, (RAKE, 0, 0))[2]
+        x0, x1 = (18, 18 + P) if sx > 0 else (-18 - P, -18)
+        cube(f"a_pillar_{side}", "cage/windshield_frame", x0, 41, 12.5, x1, CAGE_TOP - 1, 15.5, "metal", rotation=(RAKE, 0, 0), origin=PIVOT)
+    cube("windshield", "windshield", -18, 41, 13.75, 18, CAGE_TOP - T + 1, 14.25, "glass", rotation=(RAKE, 0, 0), origin=PIVOT, decals={"front": "glass", "back": "glass"})
+    pillar_rear = rotate((0, CAGE_TOP - T, 12.5), PIVOT, (RAKE, 0, 0))[2]
+    pillar_front = rotate((0, CAGE_TOP - 1, 15.5), PIVOT, (RAKE, 0, 0))[2]
     header_back = math.floor(pillar_rear - 0.5)
     header_front = round(pillar_front, 2)
     cube("header", "cage/windshield_frame", -21, CAGE_TOP - T, header_back, 21, CAGE_TOP, header_front, "metal")
-    # --- the cage: a flat rectangle over the front seats, a post at the doors' seam and a hoop behind the
-    # front row, a brace from each rear corner down and back to the tub over the rear wheel
-    HOOP = -20
+    # --- the cage: a flat rectangle over the front seats; at its rear corners an A-frame pair each side, one
+    # post straight down to the tub and one leaning forward to it, as the reference's
     for sx, side in ((1, "left"), (-1, "right")):
         x0, x1 = (17, 17 + T) if sx > 0 else (-17 - T, -17)
-        cube(f"roof_rail_{side}", "cage", x0, CAGE_TOP - T, HOOP - T, x1, CAGE_TOP, header_back + 0.5, "metal")
-        cube(f"b_post_{side}", "cage", x0, TUB_TOP, -8, x1, CAGE_TOP - T, -4, "metal")
-        cube(f"hoop_post_{side}", "cage", x0, TUB_TOP, HOOP - T, x1, CAGE_TOP - T, HOOP, "metal")
-        cube(f"brace_{side}", "cage", x0, CAGE_TOP - T, HOOP - T - 24, x1, CAGE_TOP, HOOP - T, "metal", rotation=(-40, 0, 0), origin=((x0 + x1) / 2, CAGE_TOP - T / 2, HOOP - T))
-    cube("hoop_bar", "cage", -21, CAGE_TOP - T, HOOP - T, 21, CAGE_TOP, HOOP, "metal")
-    cube("cross_bar", "cage", -21, CAGE_TOP - T, -8, 21, CAGE_TOP, -4, "metal")
+        cube(f"roof_rail_{side}", "cage", x0, CAGE_TOP - T, HOOP, x1, CAGE_TOP, header_back + 0.5, "metal")
+        cube(f"hoop_post_{side}", "cage", x0, TUB_TOP, HOOP, x1, CAGE_TOP - T, HOOP + T, "metal")
+        # turned about its top, its foot would lift off the tub; it starts a pixel and a half down inside the side
+        cube(f"lean_post_{side}", "cage", x0, TUB_TOP - 1.5, HOOP + 6, x1, CAGE_TOP - T, HOOP + 6 + T, "metal", rotation=(22, 0, 0), origin=((x0 + x1) / 2, CAGE_TOP - T, HOOP + 8))
+    cube("hoop_bar", "cage", -21, CAGE_TOP - T, HOOP, 21, CAGE_TOP, HOOP + T, "metal")
     # --- mirrors on the pillars
     for sx, side in ((1, "left"), (-1, "right")):
         ax0, ax1 = (21, 27) if sx > 0 else (-27, -21)
         mx0, mx1 = (23, 29) if sx > 0 else (-29, -23)
-        cube(f"mirror_arm_{side}", "mirrors", ax0, 46, 12, ax1, 47, 13, "metal_dark")
-        cube(f"mirror_{side}", "mirrors", mx0, 42, 11.5, mx1, 51, 13.5, "metal", decals={"back": "mirror"})
+        cube(f"mirror_arm_{side}", "mirrors", ax0, 44, 12.5, ax1, 45, 13.5, "metal_dark")
+        cube(f"mirror_{side}", "mirrors", mx0, 40, 11.5, mx1, 50, 13.5, "metal", decals={"back": "mirror"})
     # --- inside: seats, dash, binnacle with the dials, steering wheel, gear stick
-    for row, (sz0, sz1) in (("front", (-5, 7)), ("rear", (-24, -12))):
+    for row, (sz0, sz1) in (("front", (-5, 7)), ("rear", (-35, -23))):
         for sx, side in ((1, "left"), (-1, "right")):
             x0, x1 = (3, 14) if sx > 0 else (-14, -3)
             cube(f"cushion_{row}_{side}", "seats", x0, 17, sz0, x1, 24, sz1, "seat")
-            cube(f"backrest_{row}_{side}", "seats", x0, 24, sz0, x1, 44, sz0 + 3, "seat")
-            cube(f"headrest_{row}_{side}", "seats", x0 + 2, 44, sz0, x1 - 2, 48, sz0 + 3, "seat_light")
-    cube("dash_top", "dash", -20, 34, 8, 20, TUB_TOP, 14, "dash")
-    cube("binnacle", "dash", 3, TUB_TOP, 10, 15, 44, 14, "dash")
+            cube(f"backrest_{row}_{side}", "seats", x0, 24, sz0, x1, 46, sz0 + 3, "seat")
+            cube(f"headrest_{row}_{side}", "seats", x0 + 1, 46, sz0, x1 - 1, 51, sz0 + 3, "seat_light")
+    cube("dash_top", "dash", -20, 34, 8, 20, 38, 14, "dash")
+    cube("binnacle", "dash", 3, 38, 10, 15, 44, 14, "dash")
     dial(8.0, 41.0, 10.0, 2.2, "speed")
     dial(12.8, 41.0, 10.0, 1.5, "fuel")
     for i in range(8):
@@ -344,13 +359,16 @@ def wheel():
 
 # ---------------------------------------------------------------- painting
 
-def fill_noise(px, w, h, tones, seed, patch=3, lighter=0.14, darker=0.14):
-    """Square patches, mostly the base tone, some lighter and a few darker: the calm speckle of a painted block model."""
+def fill_noise(px, w, h, tones, seed, patch=3, lighter=0.14, darker=0.14, keep=False):
+    """Square patches, mostly the base tone, some lighter and a few darker: the calm speckle of a painted block model.
+    With keep, the base-tone patches leave what is under them alone, so a second pass layers on a first."""
     noise = Noise(seed)
     for y in range(0, h, patch):
         for x in range(0, w, patch):
             r = noise.next()
-            tone = tones[1] if r < lighter else tones[2] if r > 1 - darker else tones[0]
+            tone = tones[1] if r < lighter else tones[2] if r > 1 - darker else None if keep else tones[0]
+            if tone is None:
+                continue
             for dy in range(patch):
                 for dx in range(patch):
                     if y + dy < h and x + dx < w:
@@ -367,7 +385,8 @@ def paint(face, w, h, seed):
     tones = TONES[face.material]
     px = [[tones[0] for _ in range(w)] for _ in range(h)]
     if face.material == "body":
-        fill_noise(px, w, h, tones, seed, patch=4, lighter=0.22, darker=0.05)
+        fill_noise(px, w, h, tones, seed, patch=4, lighter=0.18, darker=0.04)
+        fill_noise(px, w, h, tones, seed + 1, patch=2, lighter=0.06, darker=0.0, keep=True)
     else:
         fill_noise(px, w, h, tones, seed)
     base, light, dark = tones
@@ -394,19 +413,22 @@ def paint(face, w, h, seed):
                 put(px, w, h, x, 0, light)
                 put(px, w, h, x, h - 1, dark)
     if decal == "grille":
-        # seven slots two texels wide, a texel apart, centred, nearly the face's height; a texel of dark frame round them
+        # seven slots two texels wide, a texel apart, centred, from two rows under the bonnet's edge to two above
+        # the bumper, their top corners knocked off; a texel of dark frame round them
         gw = 7 * 2 + 6
         x0 = w // 2 - gw // 2
-        for y in range(1, h - 1):
+        for y in range(2, h - 2):
             put(px, w, h, x0 - 1, y, dark)
             put(px, w, h, x0 + gw, y, dark)
         for x in range(x0 - 1, x0 + gw + 1):
-            put(px, w, h, x, 1, dark)
-            put(px, w, h, x, h - 2, dark)
+            put(px, w, h, x, 2, dark)
+            put(px, w, h, x, h - 3, dark)
         for k in range(7):
-            for y in range(2, h - 2):
+            for y in range(3, h - 3):
                 put(px, w, h, x0 + k * 3, y, black)
                 put(px, w, h, x0 + k * 3 + 1, y, black)
+            put(px, w, h, x0 + k * 3, 3, dark)
+            put(px, w, h, x0 + k * 3 + 1, 3, dark)
     elif decal == "lamp":
         # a rectangular lamp: a grey rim, three dark slats across a pale face
         for y in range(h):
@@ -464,10 +486,10 @@ def paint(face, w, h, seed):
             put(px, w, h, 2, y, dark)
             put(px, w, h, w - 3, y, dark)
     elif decal == "bumper":
-        # a highlight on top, the upper half plain, the lower half lighter, a shadow along the bottom
+        # a highlight on top, a groove between two tiers, a shadow along the bottom
         for y in range(h):
             for x in range(w):
-                put(px, w, h, x, y, light if y == 0 else base if y < h // 2 else light if y < h - 1 else dark)
+                put(px, w, h, x, y, light if y == 0 else dark if y == h // 2 else dark if y == h - 1 else base)
     elif decal == "drum":
         for y in range(h):
             for x in range(w):
@@ -479,12 +501,14 @@ def paint(face, w, h, seed):
                 put(px, w, h, x, y, dark if (x == 0 or y == 0 or x == w - 1 or y == h - 1) else base)
         put(px, w, h, 1, 1, light)
     elif decal == "glass":
-        # nearly clear: a faint pane, one glare streak across it, a fine edge; the alpha rides with the texel
+        # nearly clear: a faint pane, a fine edge, and the reference's glare -- a thin white bracket in the top-left
+        # and bottom-right corners; the alpha rides with the texel
+        white = (244, 248, 252)
         for y in range(h):
             for x in range(w):
                 edge = x == 0 or y == 0 or x == w - 1 or y == h - 1
-                band = 0 <= (x + y) - (w // 3) <= 1
-                put(px, w, h, x, y, light + (GLASS_STREAK,) if band else base + (GLASS_EDGE,) if edge else base + (GLASS_PANE,))
+                bracket = (2 <= x <= 6 and y == 2) or (x == 2 and 2 <= y <= 5) or (w - 7 <= x <= w - 3 and y == h - 3) or (x == w - 3 and h - 6 <= y <= h - 3)
+                put(px, w, h, x, y, white + (GLASS_STREAK,) if bracket else base + (GLASS_EDGE,) if edge else base + (GLASS_PANE,))
     elif decal == "mirror":
         for y in range(1, h - 1):
             for x in range(1, w - 1):
@@ -518,7 +542,8 @@ def paint(face, w, h, seed):
                 block = shift < ang < shift + 11.0 and 1.0 < abs(p[0]) < 4.4
                 put(px, w, h, i, j, light if block else dark)
     elif decal == "rim":
-        # by radius from the axle: sidewall, a rim ring, the rim face with five lugs, a hub
+        # by radius from the axle: the sidewall, the tread's blocks wrapping a texel onto the shoulder, a light
+        # lip, a dark dish with six light spokes; the hub's cubes take over inside
         hub = TONES["hub"]
         for j in range(h):
             for i in range(w):
@@ -527,25 +552,27 @@ def paint(face, w, h, seed):
                 ang = math.degrees(math.atan2(p[2], p[1]))
                 if d > WHEEL_R - 0.7:
                     c = dark
+                elif d > WHEEL_R - 2.2:
+                    c = light if int(((ang + 180) % 360) // 11.25) % 2 == 0 else dark
                 elif d > 11.0:
                     c = base
-                elif d > 9.6:
-                    c = hub[2]
-                elif d > 7.2:
+                elif d > 9.8:
                     c = hub[0]
-                    for k in range(6):
-                        if abs(((ang - k * 60 + 180) % 360) - 180) < 11 and 7.4 < d < 9.4:
-                            c = (60, 62, 68)
                 else:
-                    c = hub[1]
+                    c = (58, 60, 66)
+                    for k in range(6):
+                        if abs(((ang - k * 60 + 180) % 360) - 180) < 8:
+                            c = hub[0]
                 put(px, w, h, i, j, c)
     elif decal == "hubcap":
+        # a light ring, a dark ring, a light cap with a dark square at its centre
         hub = TONES["hub"]
         for j in range(h):
             for i in range(w):
                 p = sub(world(i, j), face.cube.origin)
                 d = math.hypot(p[1], p[2])
-                put(px, w, h, i, j, hub[1] if d < 2.4 else hub[0] if d < 5.6 else hub[2])
+                sq = max(abs(p[1]), abs(p[2]))
+                put(px, w, h, i, j, (40, 42, 46) if sq < 1.5 else hub[1] if d < 3.6 else (56, 58, 64) if d < 5.8 else hub[0])
     return px
 
 
@@ -673,9 +700,9 @@ def profile():
         "wheel_mesh": "trailblazer:trailblazer_wheel",
         "scale": 0.0625,
         "handedness": "right",
-        "body": {"width": 2.75, "length": 6.9, "height": 3.5,
-                 "parts": [{"at": [0, 10, 35], "width": 3.4, "height": 1.5}, {"at": [0, 10, -36], "width": 3.4, "height": 1.5}]},
-        "seats": [{"at": [8, SEAT_Y, 1], "driver": True}, {"at": [-8, SEAT_Y, 1]}, {"at": [8, SEAT_Y, -18]}, {"at": [-8, SEAT_Y, -18]}],
+        "body": {"width": 2.75, "length": 7.8, "height": 3.7,
+                 "parts": [{"at": [0, 10, 38], "width": 3.4, "height": 1.5}, {"at": [0, 10, -45], "width": 3.4, "height": 1.5}]},
+        "seats": [{"at": [8, SEAT_Y, 1], "driver": True}, {"at": [-8, SEAT_Y, 1]}, {"at": [8, SEAT_Y, -29]}, {"at": [-8, SEAT_Y, -29]}],
         "wheels": {"radius": WHEEL_R, "positions": [{"forward": FRONT_AXLE, "right": -TRACK, "steers": True}, {"forward": FRONT_AXLE, "right": TRACK, "steers": True},
                                                    {"forward": REAR_AXLE, "right": -TRACK}, {"forward": REAR_AXLE, "right": TRACK}]},
         "engine": {"max_speed": 0.9, "acceleration": 0.02, "reverse_speed": 0.3, "brake": 0.05, "drag": 0.01},
@@ -683,15 +710,15 @@ def profile():
         "climb": 2.0,
         "mass": 1.45,
         "fuel": {"capacity": 24000},
-        "storage": {"rows": 6, "region": {"z_max": -26}, "chest": {"at": [0, 16, -42], "yaw": 180}},
+        "storage": {"rows": 6, "region": {"z_max": -38}, "chest": {"at": [0, 16, -52], "yaw": 180}},
         # The dials face the driver (-z); needles point up at rest. Seen by the driver, positive about +z is
         # clockwise, so both sweep clockwise from eight o'clock (-120 degrees) through four (+120).
         "gauges": [{"kind": "speed", "part": {"group": "needle_speed"}, "pivot": SPEED_PIVOT, "axis": [0, 0, 1], "zero": -2.094, "sweep": 4.189},
                    {"kind": "fuel", "part": {"group": "needle_fuel"}, "pivot": FUEL_PIVOT, "axis": [0, 0, 1], "zero": -2.094, "sweep": 4.189}],
-        "headlights": {"at": [[15, 32.5, 47.5], [-15, 32.5, 47.5]], "part": {"group": "lenses"}, "range": 10},
+        "headlights": {"at": [[15.5, 33.5, NOSE + 1.5], [-15.5, 33.5, NOSE + 1.5]], "part": {"group": "lenses"}, "range": 10},
         "horn": "vanillawheels:horn.truck",
         "radio": {"at": [-4, 37, 12]},
-        "hitch": {"rear": [0, 21, -60]},
+        "hitch": {"rear": [0, 21, -68]},
         "paint": {"part": {"group": "body"}, "default": "light_blue"},
         "glass": {"group": "windshield"},
         "sounds": {"engine": "vanillawheels:engine.petrol"},

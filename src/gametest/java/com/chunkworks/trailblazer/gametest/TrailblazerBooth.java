@@ -253,10 +253,15 @@ public final class TrailblazerBooth {
                 car = v.getUUID();
                 sp.getAbilities().flying = true;
                 sp.onUpdateAbilities();
-                sp.teleportTo(level, v.getX() + 4.2, y + 3.2, v.getZ() - 5.0, 40.0f, 28.0f);
+                // The reference's own view: front-left quarter, low, at a modeller's narrow field of view.
+                sp.teleportTo(level, v.getX() + 9.6, y + 6.3, v.getZ() - 6.7, 55.0f, 24.0f);
             }
         })));
-        s.add(new Step(t += SETTLE / 2, () -> shoot(mc, "booth-three-quarter")));
+        s.add(new Step(t += 2, () -> mc.options.fov().set(45)));
+        s.add(new Step(t += SETTLE / 2, () -> {
+            shoot(mc, "booth-three-quarter");
+            mc.options.fov().set(70);
+        }));
         // Round to the rear quarter for the bed and its chest.
         s.add(new Step(t += 2, () -> onServer(mc, sp -> {
             ServerLevel level = sp.serverLevel();
@@ -264,7 +269,7 @@ public final class TrailblazerBooth {
             if (level.getEntity(car) instanceof Vehicle v) {
                 sp.getAbilities().flying = false;
                 sp.onUpdateAbilities();
-                sp.teleportTo(level, v.getX() - 5.5, y + 3.5, v.getZ() + 5.5, -135.0f, 25.0f);
+                sp.teleportTo(level, v.getX() - 8.0, y + 3.8, v.getZ() + 7.0, -131.0f, 12.0f);
             }
         })));
         s.add(new Step(t += SETTLE / 2, () -> shoot(mc, "booth-rear-quarter")));
