@@ -43,16 +43,16 @@ renders before any booth; the bundle is gone.
 ## Next
 
 1.0.0 (2026-09-09): the repaired bundle, which Rusty called the Temu version. 1.1.0
-(2026-09-09): the Blockbench truck. 1.2.0 (2026-09-09): the truck matched to the
-reference part by part from side-by-side frames -- Rusty's bar is the exterior exactly
-as the reference's, four doors and the chest the only differences -- with the
-protocol's inside-out lighting fixed on the way (Vanilla Wheels 1.3.1). Rusty's friend
-made a pass in Blockbench too (fenders down onto the tyres, angled arch ends, a chest
-modelled in the bed), all of which the rebuilt model already has. 1.3.0 (2026-09-10, unreleased, awaiting Rusty's look): the last rounds against the
-reference -- the A-frame's second leg from the roof's corner, the deep nose over a bumper
-that protrudes past the fenders, the reference's grille, hook lamps, winch and marker
-lamps at their sizes, the factory colour (Vanilla Wheels 1.4.0). His friend's second
-pass rebuilt the wheels as twelve tread cubes on a flat rim plate; the sixteen-facet
-tyre with the painted lip, dish and capped hub is the closer match to the reference's
-wheel and stays. Next: the tuning session -- top speed, drift, damage, the dial size
-and the seat position are numbers to watch, not to plan.
+(2026-09-09): the Blockbench truck from the generator. 1.2.0 (2026-09-09): matched to the
+reference part by part from side-by-side frames, the protocol's inside-out lighting fixed
+on the way. 1.3.0 (2026-09-10, pack 1.30.0): Rusty's friend rebuilt the wheels in
+Blockbench -- twelve tread blocks and a rim plate, the reference's own construction --
+and lowered the fenders onto them, and it was plainly better than the generator's painted
+slabs; his file is the source as it is (D-0003), split by `adopt.py`, with the protocol
+reading Blockbench 5's groups list and a factory paint colour so the game shows the
+preview's blue, and one glare on the windshield. Rusty's reference image and the friend's
+file as received are kept outside the repo at `/home/rusty/Code/minecraft mods/tools/reference/`.
+Any change to the truck is made in Blockbench and adopted; nothing generates it.
+
+Next: the tuning session -- top speed, drift, run-over damage, the dial size and the seat
+position are numbers to watch in the booth with Rusty, not to plan.
