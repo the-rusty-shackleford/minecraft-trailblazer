@@ -186,7 +186,7 @@ def cube(name, folder, x0, y0, z0, x1, y1, z1, material, rotation=(0, 0, 0), ori
 
 # ---------------------------------------------------------------- the truck
 
-WHEEL_R = 16.5
+WHEEL_R = 16.0
 WHEEL_W = 11.0
 FRONT_AXLE = 36
 REAR_AXLE = -45
@@ -198,7 +198,7 @@ TRACK = 22
 TUB_TOP = 40
 HOOD_TOP = 40
 FENDER_TOP = 37
-FENDER_T = 3
+FENDER_T = 4
 CAGE_TOP = 61
 NOSE = 50
 TAIL = -60
@@ -239,7 +239,7 @@ def truck():
     # grille; its rear slope ends ahead of the front door and a leg drops from there to the rocker; the rear
     # fender mirrors it. The rocker step between the legs.
     for sx, side in ((1, "left"), (-1, "right")):
-        x0, x1 = (20, 25) if sx > 0 else (-25, -20)
+        x0, x1 = (20, 27) if sx > 0 else (-27, -20)
         fx = (x0 + x1) / 2
         lx0, lx1 = (x1 - 3, x1) if sx > 0 else (x0, x0 + 3)
         top = FENDER_TOP
@@ -256,7 +256,7 @@ def truck():
         cube(f"fender_rear_leg_{side}", "fenders", lx0, 15, -28, lx1, 32, -25, "rubber")
         cube(f"fender_rear_tail_{side}", "fenders", x0, bot, -66, x1, top, -58, "rubber", rotation=(-45, 0, 0), origin=(fx, top, -58))
         cube(f"fender_rear_block_{side}", "fenders", x0, 16, -64, x1, 31, -60, "rubber")
-        sx0, sx1 = (21, 25) if sx > 0 else (-25, -21)
+        sx0, sx1 = (21, 26) if sx > 0 else (-26, -21)
         cube(f"step_{side}", "fenders", sx0, 12, -25, sx1, 15, 12, "floor")
     # --- bumpers, deep, with chamfered ends; hook lamps and a winch on the front one, the hitch ball on the rear
     BUMPER = (8, 16)
@@ -471,8 +471,11 @@ def paint(face, w, h, seed):
         for j in range(h):
             for i in range(w):
                 p = world(i, j)
-                if 7.0 <= p[2] - rear < 9.0 and any(abs(p[0] - (-7.5 + k * 5)) < 2.0 for k in range(4)):
-                    put(px, w, h, i, j, black)
+                dz = p[2] - rear
+                if 3.0 <= dz < 5.0:
+                    slant = 0.0 if dz < 4.0 else 1.0
+                    if any(abs(p[0] - (-7.5 + k * 5) - slant) < 2.0 for k in range(4)):
+                        put(px, w, h, i, j, black)
     elif decal == "door":
         for x in range(w):
             put(px, w, h, x, 0, dark)
