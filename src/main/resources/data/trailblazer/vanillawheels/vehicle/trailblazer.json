@@ -35,7 +35,12 @@
         16.1,
         0.7000000000000002
       ],
-      "driver": true
+      "driver": true,
+      "eye": [
+        0,
+        35.3,
+        5.6
+      ]
     },
     {
       "at": [
@@ -201,6 +206,14 @@
   "glass": {
     "group": "windshield"
   },
+  "cockpit": {
+    "group": [
+      "cage",
+      "windshield_frame",
+      "mirrors"
+    ]
+  },
+  "rider_scale": 0.7,
   "sounds": {
     "engine": "vanillawheels:engine.petrol"
   }

@@ -43,6 +43,13 @@ CHEST_GROUP = "trunk_chest"
 # under the attachment and the head 1.8 blocks over the feet, so with the cushion top at ~12 and the cage top at
 # ~33 the head just clears the bar; the bent thighs hang 4 units under the pelvis, which rests on the cushion.
 SEAT_LIFT = 1
+# Everyone aboard is sized to this (the game's scale attribute) so a person fits a truck built to the
+# world's scale; the drawn body sits in the seat while the driver's eye is put at the eye point below.
+RIDER_SCALE = 0.7
+# The driver's eye: on the centreline, four tenths of the way up the glass, four units behind it, so
+# the pillars sit at the edges of the frame, the header bar above it and the dash at its foot.
+EYE_UP_THE_GLASS = 0.4
+EYE_BEHIND_THE_GLASS = 4
 
 
 # ---------------------------------------------------------------- PNG
@@ -234,6 +241,8 @@ def main(argv) -> None:
     tub_lo, tub_hi = bounds([e for e in body if in_group(paths.get(e["uuid"], ""), "tub")])
     fender_lo, fender_hi = bounds([e for e in body if in_group(paths.get(e["uuid"], ""), "fenders")])
     dash_lo, dash_hi = bounds([e for e in body if in_group(paths.get(e["uuid"], ""), "dash")])
+    glass_lo, glass_hi = bounds([e for e in body if in_group(paths.get(e["uuid"], ""), "windshield")])
+    eye = [0, round(glass_lo[1] + EYE_UP_THE_GLASS * (glass_hi[1] - glass_lo[1]), 1), round(glass_lo[2] - EYE_BEHIND_THE_GLASS, 1)]
     body_lo, body_hi = bounds(body)
     length = (body_hi[2] - body_lo[2]) / 16.0
     # The box the world collides with stands as tall as the hull -- tub, bonnet, fenders, doors, dash --
@@ -254,7 +263,7 @@ def main(argv) -> None:
         "body": {"width": round((tub_hi[0] - tub_lo[0]) / 16.0, 2), "length": round(length, 2), "height": round(height, 2),
                  "parts": [{"at": [0, round(fender_lo[1], 1), round(positions[0][2], 1)], **arch},
                            {"at": [0, round(fender_lo[1], 1), round(positions[2][2], 1)], **arch}]},
-        "seats": [{"at": [front_seat[0], seat_y, front_seat[2]], "driver": True}, {"at": [-front_seat[0], seat_y, front_seat[2]]},
+        "seats": [{"at": [front_seat[0], seat_y, front_seat[2]], "driver": True, "eye": eye}, {"at": [-front_seat[0], seat_y, front_seat[2]]},
                   {"at": [rear_seat[0], seat_y, rear_seat[2]]}, {"at": [-rear_seat[0], seat_y, rear_seat[2]]}],
         "wheels": {"radius": wheel_r, "positions": [
             {"forward": positions[0][2], "right": -positions[0][0], "up": wheel_up, "steers": True},
@@ -281,6 +290,8 @@ def main(argv) -> None:
         "hitch": {"rear": [0, hitch[1], by_name["hitch_ball"]["from"][2]]},
         "paint": {"part": {"group": "body"}, "default": "light_blue", "factory": FACTORY},
         "glass": {"group": "windshield"},
+        "cockpit": {"group": ["cage", "windshield_frame", "mirrors"]},
+        "rider_scale": RIDER_SCALE,
         "sounds": {"engine": "vanillawheels:engine.petrol"},
     }
     write_json(DATA / "vanillawheels/vehicle/trailblazer.json", profile)
