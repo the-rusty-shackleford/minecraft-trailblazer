@@ -99,7 +99,7 @@ public final class TrailblazerGameTests {
         helper.assertTrue(t.headlights().isPresent(), "headlights");
         helper.assertTrue(t.handedness() == VehicleProfile.Handedness.RIGHT, "a Blockbench project is in the game's frame");
         Vehicle v = truck(helper, 7.5, 7.5);
-        helper.assertTrue(v.getBbWidth() > 2.7 && v.getBbWidth() < 2.8, "2.75 wide: " + v.getBbWidth());
+        helper.assertTrue(Math.abs(v.getBbWidth() - t.body().width()) < 0.01, "as wide as the profile's tub: " + v.getBbWidth() + " vs " + t.body().width());
         helper.assertTrue(v.getName().getString().equals("Trailblazer"), "named: " + v.getName().getString());
         helper.succeed();
     }

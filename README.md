@@ -31,59 +31,53 @@ and right-click the dash empty-handed to eject it. Back the rear hitch onto a tr
 tongue to tow it.
 
 Numbers: top speed 0.9 blocks a tick (18 m/s), mass 1.45 (a full-speed hit does eleven and
-a half), climb 2 blocks, 32 degrees of steering lock.
+a half), climb 2 blocks, 32 degrees of steering lock; four and two thirds blocks long, one
+and five sixths wide, the cage two and two thirds high and the hull -- what the world
+collides with -- one and three quarters, so it drives under a two-block canopy with the
+cage through the leaves. A full drift's boost holds 1.16 blocks a tick for two seconds
+with the afterburner out, and in third person the camera stands eight and a half blocks
+back.
 
 ## How it is made
 
-The truck is a Blockbench project designed in code, to the reference Rusty gave: an
-open-top, roll-caged, light-blue Jeep with a seven-slot grille between slatted lamps,
-black arch fenders hugging big treaded tyres, a raked windshield in a silver frame
-under a flat cage with an A-frame hoop behind the front seats, a deep nose over a low
-chamfered bumper with hook lamps and a winch, black seats, side mirrors -- given four
-doors, a dash with two dials, a chest in the bed and a hitch. Its datum lines are
-measured off the reference against its own tub: the tyres seven tenths of the tub's
-height across, the fenders two pixels under the bonnet line, the cage eighteen pixels
-over the tub, the grille panel running twenty-two pixels down to a bumper below the
-axle line. The wheelbase is the one thing that is not the reference's: it is longer by
-a rear door. `devtools/art/build.py` writes three projects and the profile:
+The truck is a Blockbench project built by hand -- `devtools/art/preview/trailblazer.bbmodel`,
+the body with its four wheels in place, its chest in the bed and the paint tinted as the
+game tints it, for looking at in Blockbench -- to the reference Rusty gave: an open-top,
+roll-caged, light-blue Jeep with a seven-slot grille between slatted lamps, black arch
+fenders hugging big treaded tyres, a raked windshield in a silver frame under a flat cage,
+a deep nose over a low chamfered bumper, black seats, side mirrors, four doors, a dash
+with two dials, a chest in the bed and a hitch. Nothing generates it: change the truck
+in Blockbench, then run `devtools/art/adopt.py`, which writes:
 
 - `src/main/resources/assets/trailblazer/vanillawheels/mesh/trailblazer.bbmodel`, the
-  body, and `trailblazer_wheel.bbmodel`, one wheel: what the game loads, as saved.
-- `devtools/art/preview/trailblazer_preview.bbmodel`: the body with its four wheels in
-  place and the paint tinted as the light-blue dye tints it in the game, for looking at.
-  Open it in Blockbench; it is what a player sees, minus the shaders.
+  body -- everything but the wheels and the chest, its body faces divided by the preview's
+  tint so the game's paint multiplies back in -- and `trailblazer_wheel.bbmodel`, one
+  wheel moved to the axle's origin: what the game loads, as saved.
 - `src/main/resources/data/trailblazer/vanillawheels/vehicle/trailblazer.json`, the
-  profile, whose seat points, dial pivots, lamp positions and wheel slots come from the
-  same constants as the cubes.
+  profile, its numbers read off the cubes: the seats off the cushions (a unit over the
+  cushion's top, where a player's sitting pose puts the body on it and the head under the
+  cage's bar), the wheel radius and positions off the wheel folders, the hit boxes off the
+  fenders, the collision box as wide as the tub, as long as the body and as tall as the
+  hull -- not the cage, windshield or mirrors, which pass through a low canopy -- the
+  dials' pivots, the lamps, the chest's place and its scale (the game's double chest drawn
+  as wide as the `chest_base` cube), the hitch off the ball and the radio off the dash.
+  The engine, handling, climb, mass and fuel numbers live in the script, for tuning.
+- the lang file.
 
-Every face has its own patch of the one embedded texture, painted by the script: the
-reference's finish -- a broad, calm mottle per material and a one-pixel light bevel
-along every top edge with a dark one along every bottom -- and drawn detail where a
-face is something (the grille's slots, the lamps' slats, the bonnet's vents, the door
-seams, the tail lights, the glass nearly clear with the reference's white corner
-brackets), while the tread, the rims and the dials are painted by where each texel is
-in the world, so a turned slab of a tyre gets its share of the pattern. Body faces are
-greys the paint multiplies into; the paint is the profile's factory colour, the
-reference's own blue as the shaders render it, found by measuring booth frames against
-the image, since light-blue dye lifted toward white lands short of it and a swatch can
-only take away. A dye repaints it as any vehicle. Selectors in the profile name folders and elements (`body`, `lenses`,
-`windshield`, `needle_speed`), never materials.
-
-Two conventions bit and are written down in the script: Blockbench's frame is the
-game's, +Z the nose, +X the vehicle's left, and a turn about +X by a positive angle
-carries the top toward the nose, so the windshield's rake is negative; and a face's
-texture rows count from the top, which the protocol flips.
-
-Until someone edits a project by hand in Blockbench, the script is the source and the
-files are regenerated from it. The day a hand edit lands, the saved project is the
-source: stop running the script for that file, or fold the edit back into it.
+The body's paint is the profile's factory colour, the reference's own blue as the shaders
+render it, since light-blue dye lifted toward white lands short of it; a dye repaints it as
+any vehicle. Selectors in the profile name folders and elements (`body`, `lenses`,
+`windshield`, `needle_speed`), never materials. The script refuses nothing silently: a
+folder it needs that is missing is an error. The file as received is kept outside the
+repo, beside the reference image.
 
 ## Verifying it
 
 ```
 export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 PATH="$JAVA_HOME/bin:$PATH"
-uv run --no-project python devtools/art/build.py     # regenerate the projects and the profile
+uv run --no-project python devtools/art/adopt.py     # split the project and write the profile
 ./gradlew check                                       # gametests and the photo booth (needs a display)
+./gradlew runPlaytest                                 # the course, beside an Automobility car (needs a display)
 ```
 
 Look before you build: open the preview project in Blockbench and turn it, or drive
@@ -108,6 +102,23 @@ assertion. Under the pack's shaders: Sodium, Iris and Complementary Unbound in
 1280x720 -ac -br -noreset`, then `DISPLAY=:7 __GLX_VENDOR_LIBRARY_NAME=mesa
 LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe MESA_GL_VERSION_OVERRIDE=4.6
 MESA_GLSL_VERSION_OVERRIDE=460 ./gradlew check`.
+
+The playtest (`TrailblazerPlaytest`, `./gradlew runPlaytest`) is how the driving is
+judged against the mod the pack already has. It lays one course in a flat world -- a ramp
+of half steps up two blocks and down, a ramp up a two-block ledge and a cliff off it, a
+canopy of leaves two blocks over the road, a herd of cows on the road, and an open pad --
+and drives it three times under one script from the driver's client: the truck seen from
+behind, the truck through the driver's eyes, and an Automobility steel motorcar; then
+sends a truck with a villager aboard up the first ramp under the server's own throttle,
+watched side-on, for the body's pitch and the rider's lean. Every tick logs
+`playtest: <who> t= x= y= z= yaw= v= ground= burn= drifting= pitch=`; frames land in
+`run/playtest/screenshots/` every forty ticks and every ten through the drift; a run that
+stops advancing is logged `STUCK` and lifted on. The server's own `moved wrongly` lines
+land in the same log, so `grep -c` of them is the count of moves the server refused. The
+Automobility jar is not a dependency: `preparePlaytest` copies it into the run's mods
+folder from `-PautomobilityJar=` (default `../tools/playtest/`). Read the numbers first
+(the two drifts' yaw a tick, the boost's speed and how long it holds, the refusals), then
+the frames.
 
 ## Licence
 

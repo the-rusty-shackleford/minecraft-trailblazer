@@ -18,6 +18,7 @@
 package com.chunkworks.trailblazer.gametest;
 
 import com.chunkworks.vanillawheels.Vehicle;
+import com.chunkworks.vanillawheels.api.VehicleProfile;
 import com.mojang.blaze3d.platform.NativeImage;
 import java.util.ArrayList;
 import java.util.List;
@@ -207,18 +208,19 @@ public final class TrailblazerBooth {
         s.add(new Step(t += SETTLE / 2, () -> {
             shoot(mc, "booth-windshield");
             verdict("the driver is aboard", () -> mc.player != null && mc.player.getVehicle() instanceof Vehicle ? null : "vehicle " + (mc.player == null ? null : mc.player.getVehicle()));
-            verdict("the driver's eye is under the roof", () -> {
+            verdict("the driver's eye is under the cage's top", () -> {
                 if (!(mc.player != null && mc.player.getVehicle() instanceof Vehicle v)) {
                     return "not aboard";
                 }
                 double eye = mc.player.getEyeY() - v.getY();
-                double roof = v.profile().body().height();
-                return eye < roof - 0.05 ? null : "eye " + eye + " blocks up, roof " + roof;
+                // The profile's height is the hull's, which the world collides with; the cage stands over it in the mesh.
+                double roof = com.chunkworks.vanillawheels.client.MeshLibrary.INSTANCE.get(v.profile().mesh()).bounds().max().y() * v.profile().scale();
+                return eye < roof - 0.05 ? null : "eye " + eye + " blocks up, the cage's top " + roof;
             });
         }));
         // The driver's client drives, so the booth holds W the way a hand would.
         s.add(new Step(t += 2, () -> mc.options.keyUp.setDown(true)));
-        s.add(new Step(t += 45, () -> look(mc, 15.0f)));
+        s.add(new Step(t += 45, () -> lookAtSpeedo(mc)));
         s.add(new Step(t += 6, () -> {
             int needles = countIn(mc, TrailblazerBooth::red, 0.0, 1.0);
             double speed = mc.player != null && mc.player.getVehicle() instanceof Vehicle v ? v.speed() : -1;
@@ -320,6 +322,17 @@ public final class TrailblazerBooth {
             mc.stop();
         }));
         return s;
+    }
+
+    /** effects: turns the riding player to face the way the truck does, looking down at the speed gauge's pivot */
+    private static void lookAtSpeedo(Minecraft mc) {
+        if (mc.player != null && mc.player.getVehicle() instanceof Vehicle v) {
+            VehicleProfile.Gauge speedo = v.profile().gauges().stream().filter(g -> g.kind() == VehicleProfile.GaugeKind.SPEED).findFirst().orElseThrow();
+            Vec3 pivot = v.position().add(v.rotate(v.profile().localBlocks(speedo.pivot())));
+            Vec3 eye = mc.player.getEyePosition();
+            double dx = pivot.x - eye.x, dy = pivot.y - eye.y, dz = pivot.z - eye.z;
+            look(mc, (float) Math.toDegrees(Math.atan2(-dy, Math.hypot(dx, dz))));
+        }
     }
 
     /** effects: turns the riding player to face the way the truck does, looking {@code pitch} degrees down */

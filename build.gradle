@@ -50,6 +50,28 @@ var prepareBooth = tasks.register("prepareBooth") {
     }
 }
 
+// The playtest drives the truck and an Automobility motorcar over one course
+// (TrailblazerPlaytest). Automobility is not a dependency: its jar goes into
+// the run's mods folder from -PautomobilityJar, default the workspace's tools.
+var preparePlaytest = tasks.register("preparePlaytest") {
+    def dir = layout.projectDirectory.dir('run/playtest').asFile
+    def jar = file(project.findProperty('automobilityJar') ?: '../tools/playtest/automobility-0.5.0.h+1.21.1-neoforge.jar')
+    doLast {
+        new File(dir, 'screenshots').deleteDir()
+        new File(dir, 'saves').deleteDir()
+        def mods = new File(dir, 'mods')
+        mods.mkdirs()
+        if (!jar.exists()) {
+            throw new GradleException("playtest: no Automobility jar at ${jar}; pass -PautomobilityJar=")
+        }
+        new File(mods, jar.name).bytes = jar.bytes
+        def options = new File(dir, 'options.txt')
+        if (!options.exists()) {
+            options.text = 'onboardAccessibility:false\ntutorialStep:none\nskipMultiplayerWarning:true\njoinedFirstServer:true\nfov:0.0\nrenderDistance:8\nhideGui:true\n'
+        }
+    }
+}
+
 neoForge {
     version = project.neo_version
 
@@ -79,6 +101,13 @@ neoForge {
             systemProperty "${mod_id}.photobooth", 'true'
             taskBefore prepareBooth
         }
+        playtest {
+            client()
+            sourceSet = sourceSets.gametest
+            gameDirectory = file('run/playtest')
+            systemProperty "${mod_id}.playtest", 'true'
+            taskBefore preparePlaytest
+        }
         configureEach {
             logLevel = org.slf4j.event.Level.DEBUG
         }
@@ -96,7 +125,7 @@ neoForge {
     addModdingDependenciesTo(sourceSets.gametest)
 }
 
-neoForge.runs.matching { it.name != 'gameTestServer' && it.name != 'photoBooth' }.configureEach {
+neoForge.runs.matching { it.name != 'gameTestServer' && it.name != 'photoBooth' && it.name != 'playtest' }.configureEach {
     loadedMods = neoForge.mods.matching { it.name != "${mod_id}_gametest" }
 }
 
@@ -111,8 +140,8 @@ dependencies {
     // keeps one copy of each across the pack.
     jarJar(implementation("com.chunkworks.vanillawheels:vanillawheels")) {
         version {
-            strictly "[1.4,2.0)"
-            prefer "1.4.0"
+            strictly "[1.5,2.0)"
+            prefer "1.5.0"
         }
     }
 

@@ -11,19 +11,16 @@ tags: [overview]
 
 The first vehicle for Vanilla Wheels: a data-only NeoForge 1.21.1 mod (`lowcodefml`)
 holding a profile, two Blockbench projects (the body and a wheel, textures embedded), a
-recipe and a lang file, with the protocol nested inside. Everything shipped is written
-by `devtools/art/build.py`, which designs the truck as cubes to Rusty's reference image
-and paints every face; a preview project with the wheels on and the paint tinted is
-written under `devtools/art/preview/` for looking at in Blockbench.
+recipe and a lang file, with the protocol nested inside. The truck is the hand-built
+project `devtools/art/preview/trailblazer.bbmodel`; everything shipped is written from it
+by `devtools/art/adopt.py` (D-0003).
 
 ## Shape
 
-No Java in the mod. `gametest` is a mod of its own: six gametests and a photo booth. The
-pipeline is the only code: the cube list (tub, doors, bonnet and nose, fenders, bumpers,
-the raked windshield frame and the cage, mirrors, seats, dash and dials, steering
-wheel; the wheel as eight tyre slabs and four hub slabs), a shelf-packed atlas at a texel
-a pixel (four on the dials), decals painted per face or by world position, the Blockbench
-project writer, and the profile as a Python dict sharing the cubes' constants.
+No Java in the mod. `gametest` is a mod of its own: six gametests, a photo booth and the
+playtest. `adopt.py` is the only pipeline: it splits the project by folder, divides the
+body's texels by the preview's tint, moves the wheel to its axle, and writes the profile
+off the cubes.
 
 ## How it is verified
 
@@ -53,6 +50,14 @@ reading Blockbench 5's groups list and a factory paint colour so the game shows 
 preview's blue, and one glare on the windshield. Rusty's reference image and the friend's
 file as received are kept outside the repo at `/home/rusty/Code/minecraft mods/tools/reference/`.
 Any change to the truck is made in Blockbench and adopted; nothing generates it.
+
+1.4.0 (2026-09-10): the friend's file replaced by Rusty's rescaled one (4.64 long, 2.65
+tall, a size a player fits), `adopt.py` made scale-free (seats, hit boxes, the collision
+box as the hull, the chest's scale, the hitch and radio all read off the cubes; D-0003
+written down), nesting Vanilla Wheels 1.5.0 (its D-0007: the playtest's findings), and the
+playtest itself: `TrailblazerPlaytest`, one course driven by the truck from behind and
+from the driver's eyes and by an Automobility motorcar, plus a side-on climb with a
+villager aboard.
 
 Next: the tuning session -- top speed, drift, run-over damage, the dial size and the seat
 position are numbers to watch in the booth with Rusty, not to plan.

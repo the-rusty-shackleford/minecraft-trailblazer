@@ -4,8 +4,8 @@ Run from the repository root:
 
     uv run --no-project python devtools/art/adopt.py
 
-Reads devtools/art/preview/trailblazer_preview.bbmodel -- the project as saved in Blockbench, the source of
-the truck since Rusty's friend built its wheels and arches there -- and writes:
+Reads devtools/art/preview/trailblazer.bbmodel -- the project as saved in Blockbench, the source of the
+truck since Rusty's friend built its wheels and arches there (and, on 2026-09-10, sized it for the game) -- and writes:
 
   src/main/resources/assets/trailblazer/vanillawheels/mesh/trailblazer.bbmodel        the body: everything but the wheels and the chest
   src/main/resources/assets/trailblazer/vanillawheels/mesh/trailblazer_wheel.bbmodel  one wheel, moved to the origin
@@ -29,7 +29,7 @@ ROOT = Path(__file__).resolve().parents[2]
 MODID = "trailblazer"
 ASSETS = ROOT / "src/main/resources/assets" / MODID
 DATA = ROOT / "src/main/resources/data" / MODID
-PREVIEW = ROOT / "devtools/art/preview/trailblazer_preview.bbmodel"
+PREVIEW = ROOT / "devtools/art/preview/trailblazer.bbmodel"
 
 # The tint the preview's body texels carry: light-blue dye lifted a quarter toward white, as Vanilla Wheels
 # paints a dyed vehicle. Dividing it out gives the greys the game multiplies its paint into.
@@ -39,7 +39,10 @@ FACTORY = "#%02x%02x%02x" % PREVIEW_TINT
 
 WHEEL_GROUP = "wheel_0_left"
 CHEST_GROUP = "trunk_chest"
-SEAT_Y = 30
+# A rider's attachment point sits this far (mesh units) above the cushion. The game puts a player's feet 0.6 blocks
+# under the attachment and the head 1.8 blocks over the feet, so with the cushion top at ~12 and the cage top at
+# ~33 the head just clears the bar; the bent thighs hang 4 units under the pelvis, which rests on the cushion.
+SEAT_LIFT = 1
 
 
 # ---------------------------------------------------------------- PNG
@@ -121,6 +124,13 @@ def in_group(path: str, group: str) -> bool:
 
 def centre(e):
     return [(a + b) / 2 for a, b in zip(e["from"], e["to"])]
+
+
+def bounds(elements):
+    """(lo, hi) over the cubes, mesh units."""
+    lo = [min(min(e["from"][a], e["to"][a]) for e in elements) for a in range(3)]
+    hi = [max(max(e["from"][a], e["to"][a]) for e in elements) for a in range(3)]
+    return lo, hi
 
 
 def moved(e, d):
@@ -221,20 +231,31 @@ def main(argv) -> None:
     chest_base = by_name["chest_base"]
     front_seat = centre(by_name["cushion_front_left"])
     rear_seat = centre(by_name["cushion_rear_left"])
-    zs = [v for e in body for v in (e["from"][2], e["to"][2])]
-    ys = [v for e in body for v in (e["from"][1], e["to"][1])]
-    length = (max(zs) - min(zs)) / 16.0
-    height = max(ys) / 16.0
+    tub_lo, tub_hi = bounds([e for e in body if in_group(paths.get(e["uuid"], ""), "tub")])
+    fender_lo, fender_hi = bounds([e for e in body if in_group(paths.get(e["uuid"], ""), "fenders")])
+    dash_lo, dash_hi = bounds([e for e in body if in_group(paths.get(e["uuid"], ""), "dash")])
+    body_lo, body_hi = bounds(body)
+    length = (body_hi[2] - body_lo[2]) / 16.0
+    # The box the world collides with stands as tall as the hull -- tub, bonnet, fenders, doors, dash --
+    # and not the cage, windshield or mirrors above it, which pass through a low canopy as a cage would
+    # push through leaves; a truck stopped dead by every tree is no fun to drive.
+    ABOVE_HULL = ("cage", "windshield_frame", "windshield", "mirrors", "seats")
+    hull = [e for e in body if not any(in_group(paths.get(e["uuid"], ""), g) for g in ABOVE_HULL)]
+    hull_lo, hull_hi = bounds(hull)
+    height = hull_hi[1] / 16.0
+    seat_y = round(by_name["cushion_front_left"]["to"][1] + SEAT_LIFT, 1)
+    # The wheel arches, as hit boxes: one per axle, the fenders' width and height, standing on the fenders' floor.
+    arch = {"width": round((fender_hi[0] - fender_lo[0]) / 16.0, 2), "height": round((fender_hi[1] - fender_lo[1]) / 16.0, 2)}
     profile = {
         "mesh": "trailblazer:trailblazer",
         "wheel_mesh": "trailblazer:trailblazer_wheel",
         "scale": 0.0625,
         "handedness": "right",
-        "body": {"width": 2.75, "length": round(length, 2), "height": round(height, 2),
-                 "parts": [{"at": [0, 10, round(positions[0][2])], "width": 3.4, "height": 1.5},
-                           {"at": [0, 10, round(positions[2][2])], "width": 3.4, "height": 1.5}]},
-        "seats": [{"at": [8, SEAT_Y, front_seat[2]], "driver": True}, {"at": [-8, SEAT_Y, front_seat[2]]},
-                  {"at": [8, SEAT_Y, rear_seat[2]]}, {"at": [-8, SEAT_Y, rear_seat[2]]}],
+        "body": {"width": round((tub_hi[0] - tub_lo[0]) / 16.0, 2), "length": round(length, 2), "height": round(height, 2),
+                 "parts": [{"at": [0, round(fender_lo[1], 1), round(positions[0][2], 1)], **arch},
+                           {"at": [0, round(fender_lo[1], 1), round(positions[2][2], 1)], **arch}]},
+        "seats": [{"at": [front_seat[0], seat_y, front_seat[2]], "driver": True}, {"at": [-front_seat[0], seat_y, front_seat[2]]},
+                  {"at": [rear_seat[0], seat_y, rear_seat[2]]}, {"at": [-rear_seat[0], seat_y, rear_seat[2]]}],
         "wheels": {"radius": wheel_r, "positions": [
             {"forward": positions[0][2], "right": -positions[0][0], "up": wheel_up, "steers": True},
             {"forward": positions[1][2], "right": -positions[1][0], "up": wheel_up, "steers": True},
@@ -245,16 +266,19 @@ def main(argv) -> None:
         "climb": 2.0,
         "mass": 1.45,
         "fuel": {"capacity": 24000},
+        # The game's double chest is two blocks (32 units) wide; it is drawn as wide as the chest_base cube.
         "storage": {"rows": 6, "region": {"z_max": chest_base["to"][2]},
-                    "chest": {"at": [0, chest_base["from"][1], (chest_base["from"][2] + chest_base["to"][2]) / 2], "yaw": 180}},
+                    "chest": {"at": [0, chest_base["from"][1], (chest_base["from"][2] + chest_base["to"][2]) / 2], "yaw": 180,
+                              "scale": round((chest_base["to"][0] - chest_base["from"][0]) / 32.0, 3)}},
         # The dials face the driver (-z); needles point up at rest. Seen by the driver, positive about +z is
         # clockwise, so both sweep clockwise from eight o'clock (-120 degrees) through four (+120).
         "gauges": [{"kind": "speed", "part": {"group": "needle_speed"}, "pivot": [speed[0], speed[1], needle_z], "axis": [0, 0, 1], "zero": -2.094, "sweep": 4.189},
                    {"kind": "fuel", "part": {"group": "needle_fuel"}, "pivot": [fuel[0], fuel[1], needle_z], "axis": [0, 0, 1], "zero": -2.094, "sweep": 4.189}],
         "headlights": {"at": [[lens[0][0], lens[0][1], lens_z + 0.5], [lens[1][0], lens[1][1], lens_z + 0.5]], "part": {"group": "lenses"}, "range": 10},
         "horn": "vanillawheels:horn.truck",
-        "radio": {"at": [-4, 37, 12]},
-        "hitch": {"rear": [0, hitch[1], hitch[2] - 2]},
+        # The radio sits on the passenger's side of the dash top.
+        "radio": {"at": [round(dash_lo[0] / 2, 1), round(dash_hi[1], 1), round((dash_lo[2] + dash_hi[2]) / 2, 1)]},
+        "hitch": {"rear": [0, hitch[1], by_name["hitch_ball"]["from"][2]]},
         "paint": {"part": {"group": "body"}, "default": "light_blue", "factory": FACTORY},
         "glass": {"group": "windshield"},
         "sounds": {"engine": "vanillawheels:engine.petrol"},
