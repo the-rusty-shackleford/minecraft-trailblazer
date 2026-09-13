@@ -32,34 +32,29 @@
     {
       "at": [
         5.95,
-        16.1,
+        15.5,
         0.7000000000000002
       ],
-      "driver": true,
-      "eye": [
-        0,
-        35.3,
-        5.6
-      ]
+      "driver": true
     },
     {
       "at": [
         -5.95,
-        16.1,
+        15.5,
         0.7000000000000002
       ]
     },
     {
       "at": [
         5.95,
-        16.1,
+        15.5,
         -12.600000000000001
       ]
     },
     {
       "at": [
         -5.95,
-        16.1,
+        15.5,
         -12.600000000000001
       ]
     }
@@ -105,7 +100,7 @@
     "drift_boost": 0.3,
     "drift_charge_ticks": 40
   },
-  "climb": 2.0,
+  "climb": 1.0,
   "mass": 1.45,
   "fuel": {
     "capacity": 24000
@@ -114,15 +109,6 @@
     "rows": 6,
     "region": {
       "z_max": -17.5
-    },
-    "chest": {
-      "at": [
-        0,
-        9.47696,
-        -22.4
-      ],
-      "yaw": 180,
-      "scale": 0.656
     }
   },
   "gauges": [
@@ -206,14 +192,6 @@
   "glass": {
     "group": "windshield"
   },
-  "cockpit": {
-    "group": [
-      "cage",
-      "windshield_frame",
-      "mirrors"
-    ]
-  },
-  "rider_scale": 0.7,
   "sounds": {
     "engine": "vanillawheels:engine.petrol"
   }

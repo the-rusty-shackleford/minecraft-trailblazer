@@ -17,7 +17,7 @@ by `devtools/art/adopt.py` (D-0003).
 
 ## Shape
 
-No Java in the mod. `gametest` is a mod of its own: six gametests, a photo booth and the
+No Java in the mod. `gametest` is a mod of its own: seven gametests, a photo booth and the
 playtest. `adopt.py` is the only pipeline: it splits the project by folder, divides the
 body's texels by the preview's tint, moves the wheel to its axle, and writes the profile
 off the cubes.
@@ -26,7 +26,7 @@ off the cubes.
 
 Looking first: renders of the preview through Blockbench's own camera (driven over its
 remote-debugging port) from five angles and close on every joint, compared with the
-reference. Then `./gradlew check`: six gametests (profile, speed and the two-block step,
+reference. Then `./gradlew check`: seven gametests (profile, speed and the one-block step, the two-block wall,
 running a cow over, coal, the chassis recipe, the radio) and the booth under the pack's
 shaders (side stock and red, windshield and dash from the driver's seat at speed, the
 quarters, lamps at night from behind and in front with the beam on the ground).
@@ -58,6 +58,11 @@ written down), nesting Vanilla Wheels 1.5.0 (its D-0007: the playtest's findings
 playtest itself: `TrailblazerPlaytest`, one course driven by the truck from behind and
 from the driver's eyes and by an Automobility motorcar, plus a side-on climb with a
 villager aboard.
+
+1.5.0 (2026-09-13): nfx's V4 is the truck (headrests gone, the chest modelled in the bed,
+no vanilla chest drawn), his seat placement (cushion top + 0.4 units), `climb` 1.0, on the
+library with his pose ported (VW D-0008); the eye, cockpit and rider scale dropped from the
+profile on Rusty's call for nfx's view.
 
 Next: the tuning session -- top speed, drift, run-over damage, the dial size and the seat
 position are numbers to watch in the booth with Rusty, not to plan.

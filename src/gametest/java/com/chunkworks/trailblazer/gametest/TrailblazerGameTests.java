@@ -49,7 +49,8 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 /**
  * The Trailblazer on a headless server: its profile is registered with four
  * seats, one driver and a chest of six rows; the truck reaches speed on the
- * runway, climbs a two-block step and settles level on top; runs a cow over
+ * runway, climbs a one-block step and settles level on top, and a two-block
+ * ledge is a wall to it; runs a cow over
  * at speed for the damage its mass and speed say; takes coal into a tank
  * the gauge reads; the chassis crafts from nine steel blocks and names the
  * truck.
@@ -105,19 +106,18 @@ public final class TrailblazerGameTests {
     }
 
     @GameTest(template = "runway", timeoutTicks = 200)
-    public void theTruckReachesSpeedAndClimbsATwoBlockStep(GameTestHelper helper) {
+    public void theTruckReachesSpeedClimbsAOneBlockStepAndAWallOfTwoStopsIt(GameTestHelper helper) {
         layFloor(helper);
         for (int x = 26; x < LENGTH; x++) {
             for (int z = 0; z < WIDTH; z++) {
                 helper.setBlock(new BlockPos(x, FLOOR, z), Blocks.STONE);
-                helper.setBlock(new BlockPos(x, FLOOR + 1, z), Blocks.STONE);
             }
         }
         Vehicle v = truck(helper, 4.5, 7.5);
         double floorY = helper.absoluteVec(new Vec3(0, FLOOR, 0)).y;
         v.setScriptedInput(GAS);
         helper.runAtTickTime(40, () -> helper.assertTrue(v.speed() > 0.3, "up to speed: " + v.speed()));
-        // Brake once it is up, so a truck this long comes to rest on the shelf with all four wheels on it
+        // Brake once it is up, so a truck this long comes to rest on the step with all four wheels on it
         // rather than running off the runway's end.
         helper.runAtTickTime(65, () -> {
             helper.assertTrue(v.getX() > helper.absoluteVec(new Vec3(28, 0, 0)).x, "up the step by now: " + (v.getX() - helper.absoluteVec(new Vec3(0, 0, 0)).x));
@@ -126,8 +126,28 @@ public final class TrailblazerGameTests {
         helper.runAtTickTime(90, () -> v.setScriptedInput(null));
         helper.runAtTickTime(150, () -> {
             helper.assertTrue(v.getX() > helper.absoluteVec(new Vec3(30, 0, 0)).x, "past the step: " + (v.getX() - helper.absoluteVec(new Vec3(0, 0, 0)).x));
-            helper.assertTrue(Math.abs(v.getY() - (floorY + 2.0)) < 0.1, "standing two blocks higher: " + (v.getY() - floorY));
+            helper.assertTrue(Math.abs(v.getY() - (floorY + 1.0)) < 0.1, "standing one block higher: " + (v.getY() - floorY));
             helper.assertTrue(v.suspension(1.0f).isSettled(), "settled: " + v.suspension(1.0f) + " at " + (v.getX() - helper.absoluteVec(new Vec3(0, 0, 0)).x));
+            helper.succeed();
+        });
+    }
+
+    @GameTest(template = "runway", timeoutTicks = 120)
+    public void aTwoBlockLedgeIsAWallToTheTruck(GameTestHelper helper) {
+        layFloor(helper);
+        for (int x = 20; x < LENGTH; x++) {
+            for (int z = 0; z < WIDTH; z++) {
+                helper.setBlock(new BlockPos(x, FLOOR, z), Blocks.STONE);
+                helper.setBlock(new BlockPos(x, FLOOR + 1, z), Blocks.STONE);
+            }
+        }
+        Vehicle v = truck(helper, 4.5, 7.5);
+        double floorY = helper.absoluteVec(new Vec3(0, FLOOR, 0)).y;
+        v.setScriptedInput(GAS);
+        helper.runAtTickTime(100, () -> {
+            helper.assertTrue(Math.abs(v.getY() - floorY) < 0.1, "still on the floor: " + (v.getY() - floorY));
+            helper.assertTrue(v.getX() < helper.absoluteVec(new Vec3(20, 0, 0)).x, "held at the wall: " + (v.getX() - helper.absoluteVec(new Vec3(0, 0, 0)).x));
+            helper.assertTrue(Math.abs(v.suspension(1.0f).pitch()) < Math.toRadians(5), "level against it, not reared: " + Math.toDegrees(v.suspension(1.0f).pitch()));
             helper.succeed();
         });
     }

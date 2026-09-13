@@ -31,18 +31,19 @@ and right-click the dash empty-handed to eject it. Back the rear hitch onto a tr
 tongue to tow it.
 
 Numbers: top speed 0.9 blocks a tick (18 m/s), mass 1.45 (a full-speed hit does eleven and
-a half), climb 2 blocks, 32 degrees of steering lock; four and two thirds blocks long, one
-and five sixths wide, the cage two and two thirds high and the hull -- what the world
-collides with -- one and three quarters, so it drives under a two-block canopy with the
-cage through the leaves. A full drift's boost holds 1.16 blocks a tick for two seconds
+a half), climb 1 block (a two-block ledge is a wall; use a ramp), 32 degrees of steering
+lock; four and two thirds blocks long, one and five sixths wide, the cage a little under
+three high and the hull -- what the world collides with -- one and three quarters, so it
+drives under a two-block canopy with the cage through the leaves. A full drift's boost holds 1.16 blocks a tick for two seconds
 with the afterburner out, and in third person the camera stands eight and a half blocks
 back.
 
 ## How it is made
 
-The truck is a Blockbench project built by hand -- `devtools/art/preview/trailblazer.bbmodel`,
-the body with its four wheels in place, its chest in the bed and the paint tinted as the
-game tints it, for looking at in Blockbench -- to the reference Rusty gave: an open-top,
+The truck is a Blockbench project built by hand by nfx -- `devtools/art/preview/trailblazer.bbmodel`,
+his V4 of 2026-09-11: the body with its four wheels in place, its chest modelled in the
+bed and the paint tinted as the game tints it, for looking at in Blockbench -- to the
+reference Rusty gave: an open-top,
 roll-caged, light-blue Jeep with a seven-slot grille between slatted lamps, black arch
 fenders hugging big treaded tyres, a raked windshield in a silver frame under a flat cage,
 a deep nose over a low chamfered bumper, black seats, side mirrors, four doors, a dash
@@ -50,18 +51,20 @@ with two dials, a chest in the bed and a hitch. Nothing generates it: change the
 in Blockbench, then run `devtools/art/adopt.py`, which writes:
 
 - `src/main/resources/assets/trailblazer/vanillawheels/mesh/trailblazer.bbmodel`, the
-  body -- everything but the wheels and the chest, its body faces divided by the preview's
-  tint so the game's paint multiplies back in -- and `trailblazer_wheel.bbmodel`, one
-  wheel moved to the axle's origin: what the game loads, as saved.
+  body -- everything but the wheels, the modelled chest included, its body faces divided by
+  the preview's tint so the game's paint multiplies back in -- and
+  `trailblazer_wheel.bbmodel`, one wheel moved to the axle's origin: what the game loads,
+  as saved.
 - `src/main/resources/data/trailblazer/vanillawheels/vehicle/trailblazer.json`, the
-  profile, its numbers read off the cubes: the seats off the cushions (a unit over the
-  cushion's top, where a player's sitting pose puts the body on it and the head under the
-  cage's bar), the wheel radius and positions off the wheel folders, the hit boxes off the
+  profile, its numbers read off the cubes: the seats off the cushions (four tenths of a
+  unit over the cushion's top, nfx's placement, where a player's sitting pose puts the body
+  on it), the wheel radius and positions off the wheel folders, the hit boxes off the
   fenders, the collision box as wide as the tub, as long as the body and as tall as the
   hull -- not the cage, windshield or mirrors, which pass through a low canopy -- the
-  dials' pivots, the lamps, the chest's place and its scale (the game's double chest drawn
-  as wide as the `chest_base` cube), the hitch off the ball and the radio off the dash.
-  The engine, handling, climb, mass and fuel numbers live in the script, for tuning.
+  dials' pivots, the lamps, the chest region off the `chest_base` cube (the chest itself is
+  modelled; the game's double chest is not drawn), the hitch off the ball and the radio off
+  the dash. The engine, handling, climb, mass and fuel numbers live in the script, for
+  tuning; `climb` is one block, since two-block climbs lurched worst.
 - the lang file.
 
 The body's paint is the profile's factory colour, the reference's own blue as the shaders
@@ -90,9 +93,10 @@ hood's and the cage's against the reference's rather than trusting the swatch. T
 windshield that did not meet its frame, the frame that leaned forward, and a whole
 truck lit inside out were each plain in a picture and invisible in the numbers.
 
-Six gametests on a headless server: the profile is registered as described; the truck
-reaches speed and climbs a two-block step; runs a cow over for the damage its mass and
-speed say; takes coal; crafts its chassis; takes and ejects a disc. The booth
+Seven gametests on a headless server: the profile is registered as described; the truck
+reaches speed and climbs a one-block step, and a two-block ledge holds it level; runs a
+cow over for the damage its mass and speed say; takes coal; crafts its chassis; takes and
+ejects a disc. The booth
 photographs the truck's side stock and painted red, the view from the driver's seat
 straight ahead and down at the dash at speed on half a tank (the needles off their
 rests), the three-quarter and rear-quarter views, and the lamps at night from behind

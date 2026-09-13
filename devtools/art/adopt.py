@@ -4,17 +4,15 @@ Run from the repository root:
 
     uv run --no-project python devtools/art/adopt.py
 
-Reads devtools/art/preview/trailblazer.bbmodel -- the project as saved in Blockbench, the source of the
-truck since Rusty's friend built its wheels and arches there (and, on 2026-09-10, sized it for the game) -- and writes:
+Reads devtools/art/preview/trailblazer.bbmodel -- nfx's project as saved in Blockbench (his V4 of 2026-09-11) -- and writes:
 
-  src/main/resources/assets/trailblazer/vanillawheels/mesh/trailblazer.bbmodel        the body: everything but the wheels and the chest
+  src/main/resources/assets/trailblazer/vanillawheels/mesh/trailblazer.bbmodel        the body: everything but the wheels (the chest is modelled, and ships in it)
   src/main/resources/assets/trailblazer/vanillawheels/mesh/trailblazer_wheel.bbmodel  one wheel, moved to the origin
   src/main/resources/data/trailblazer/vanillawheels/vehicle/trailblazer.json          the profile, its numbers read off the cubes
   src/main/resources/assets/trailblazer/lang/en_us.json
 
 The preview shows the body tinted as the game paints it, so the body's texels are divided by that tint on the
-way out and the game's paint multiplies back in; the chest cubes stay in the preview only, since the game draws
-its own double chest there. Nothing here designs anything: change the truck in Blockbench and run this.
+way out and the game's paint multiplies back in. Nothing here designs anything: change the truck in Blockbench and run this.
 """
 from __future__ import annotations
 
@@ -39,17 +37,10 @@ FACTORY = "#%02x%02x%02x" % PREVIEW_TINT
 
 WHEEL_GROUP = "wheel_0_left"
 CHEST_GROUP = "trunk_chest"
-# A rider's attachment point sits this far (mesh units) above the cushion. The game puts a player's feet 0.6 blocks
-# under the attachment and the head 1.8 blocks over the feet, so with the cushion top at ~12 and the cage top at
-# ~33 the head just clears the bar; the bent thighs hang 4 units under the pelvis, which rests on the cushion.
-SEAT_LIFT = 1
-# Everyone aboard is sized to this (the game's scale attribute) so a person fits a truck built to the
-# world's scale; the drawn body sits in the seat while the driver's eye is put at the eye point below.
-RIDER_SCALE = 0.7
-# The driver's eye: on the centreline, four tenths of the way up the glass, four units behind it, so
-# the pillars sit at the edges of the frame, the header bar above it and the dash at its foot.
-EYE_UP_THE_GLASS = 0.4
-EYE_BEHIND_THE_GLASS = 4
+# A rider's attachment point sits this far (mesh units) above the cushion: nfx's placement, found in
+# game -- the game puts a player's feet 0.6 blocks under the attachment and the sitting pose the hips
+# 12 units over the feet, so the body lands on the cushion; anything more floats the rider.
+SEAT_LIFT = 0.4
 
 
 # ---------------------------------------------------------------- PNG
@@ -208,7 +199,10 @@ def main(argv) -> None:
 
     wheel = [e for e in project["elements"] if in_group(paths.get(e["uuid"], ""), WHEEL_GROUP)]
     chest = [e for e in project["elements"] if in_group(paths.get(e["uuid"], ""), CHEST_GROUP)]
-    body = [e for e in project["elements"] if e not in wheel and e not in chest and not in_group(paths.get(e["uuid"], ""), "wheels")]
+    reference = [e for e in project["elements"] if in_group(paths.get(e["uuid"], ""), "player_reference")]
+    body = [e for e in project["elements"] if e not in wheel and e not in reference and not in_group(paths.get(e["uuid"], ""), "wheels")]
+    if any(f.get("texture", 0) != 0 for e in body + wheel for f in e.get("faces", {}).values()):
+        raise SystemExit("a face uses a texture other than the first; only textures[0] is shipped")
     painted = [e for e in body if in_group(paths.get(e["uuid"], ""), "body")]
 
     # The wheel: its cubes share an origin at the axle; move them so the axle is the origin.
@@ -241,8 +235,6 @@ def main(argv) -> None:
     tub_lo, tub_hi = bounds([e for e in body if in_group(paths.get(e["uuid"], ""), "tub")])
     fender_lo, fender_hi = bounds([e for e in body if in_group(paths.get(e["uuid"], ""), "fenders")])
     dash_lo, dash_hi = bounds([e for e in body if in_group(paths.get(e["uuid"], ""), "dash")])
-    glass_lo, glass_hi = bounds([e for e in body if in_group(paths.get(e["uuid"], ""), "windshield")])
-    eye = [0, round(glass_lo[1] + EYE_UP_THE_GLASS * (glass_hi[1] - glass_lo[1]), 1), round(glass_lo[2] - EYE_BEHIND_THE_GLASS, 1)]
     body_lo, body_hi = bounds(body)
     length = (body_hi[2] - body_lo[2]) / 16.0
     # The box the world collides with stands as tall as the hull -- tub, bonnet, fenders, doors, dash --
@@ -263,7 +255,7 @@ def main(argv) -> None:
         "body": {"width": round((tub_hi[0] - tub_lo[0]) / 16.0, 2), "length": round(length, 2), "height": round(height, 2),
                  "parts": [{"at": [0, round(fender_lo[1], 1), round(positions[0][2], 1)], **arch},
                            {"at": [0, round(fender_lo[1], 1), round(positions[2][2], 1)], **arch}]},
-        "seats": [{"at": [front_seat[0], seat_y, front_seat[2]], "driver": True, "eye": eye}, {"at": [-front_seat[0], seat_y, front_seat[2]]},
+        "seats": [{"at": [front_seat[0], seat_y, front_seat[2]], "driver": True}, {"at": [-front_seat[0], seat_y, front_seat[2]]},
                   {"at": [rear_seat[0], seat_y, rear_seat[2]]}, {"at": [-rear_seat[0], seat_y, rear_seat[2]]}],
         "wheels": {"radius": wheel_r, "positions": [
             {"forward": positions[0][2], "right": -positions[0][0], "up": wheel_up, "steers": True},
@@ -272,13 +264,12 @@ def main(argv) -> None:
             {"forward": positions[3][2], "right": -positions[3][0], "up": wheel_up}]},
         "engine": {"max_speed": 0.9, "acceleration": 0.02, "reverse_speed": 0.3, "brake": 0.05, "drag": 0.01},
         "handling": {"grip": 0.85, "steer_degrees": 32, "drift_grip": 0.12, "drift_boost": 0.3, "drift_charge_ticks": 40},
-        "climb": 2.0,
+        # One block: a two-block climb produced the largest lurches (nfx); two-block ledges are walls, use ramps.
+        "climb": 1.0,
         "mass": 1.45,
         "fuel": {"capacity": 24000},
-        # The game's double chest is two blocks (32 units) wide; it is drawn as wide as the chest_base cube.
-        "storage": {"rows": 6, "region": {"z_max": chest_base["to"][2]},
-                    "chest": {"at": [0, chest_base["from"][1], (chest_base["from"][2] + chest_base["to"][2]) / 2], "yaw": 180,
-                              "scale": round((chest_base["to"][0] - chest_base["from"][0]) / 32.0, 3)}},
+        # The modelled trunk chest ships in the body, static; the game's double chest is not drawn (the bed is too narrow for it).
+        "storage": {"rows": 6, "region": {"z_max": chest_base["to"][2]}},
         # The dials face the driver (-z); needles point up at rest. Seen by the driver, positive about +z is
         # clockwise, so both sweep clockwise from eight o'clock (-120 degrees) through four (+120).
         "gauges": [{"kind": "speed", "part": {"group": "needle_speed"}, "pivot": [speed[0], speed[1], needle_z], "axis": [0, 0, 1], "zero": -2.094, "sweep": 4.189},
@@ -290,14 +281,12 @@ def main(argv) -> None:
         "hitch": {"rear": [0, hitch[1], by_name["hitch_ball"]["from"][2]]},
         "paint": {"part": {"group": "body"}, "default": "light_blue", "factory": FACTORY},
         "glass": {"group": "windshield"},
-        "cockpit": {"group": ["cage", "windshield_frame", "mirrors"]},
-        "rider_scale": RIDER_SCALE,
         "sounds": {"engine": "vanillawheels:engine.petrol"},
     }
     write_json(DATA / "vanillawheels/vehicle/trailblazer.json", profile)
     write_json(ASSETS / "lang/en_us.json", {"vehicle.trailblazer.trailblazer": "Trailblazer"})
     print(f"body {len(body)} cubes ({len(painted)} painted), wheel {len(wheel_cubes)} cubes at radius {wheel_r} up {wheel_up}, "
-          f"chest {len(chest)} cubes left in the preview; wheels at {[(p[2], -p[0]) for p in positions]}; length {length:.2f} height {height:.2f}")
+          f"chest {len(chest)} cubes in the body; wheels at {[(p[2], -p[0]) for p in positions]}; length {length:.2f} height {height:.2f}")
 
 
 if __name__ == "__main__":
