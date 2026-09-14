@@ -275,6 +275,17 @@ public final class TrailblazerBooth {
             }
         })));
         s.add(new Step(t += SETTLE / 2, () -> shoot(mc, "booth-rear-quarter")));
+        // Close over the bed from behind, for the chests: the truck faces east, so its bed is to the west of it.
+        s.add(new Step(t += 2, () -> onServer(mc, sp -> {
+            ServerLevel level = sp.serverLevel();
+            double y = level.getMinBuildHeight() + 5;
+            if (level.getEntity(car) instanceof Vehicle v) {
+                sp.getAbilities().flying = true;   // hangs in the air for the shot
+                sp.onUpdateAbilities();
+                sp.teleportTo(level, v.getX() - 4.0, y + 4.6, v.getZ() + 0.5, -90.0f, 42.0f);
+            }
+        })));
+        s.add(new Step(t += SETTLE / 2, () -> shoot(mc, "booth-bed")));
         // Up and behind the truck for the night shots.
         s.add(new Step(t += 2, () -> onServer(mc, sp -> {
             ServerLevel level = sp.serverLevel();

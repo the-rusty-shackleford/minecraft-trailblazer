@@ -25,7 +25,7 @@ documented there.
 Right-click to board (the driver's seat first); movement keys drive, jump held in a turn
 drifts, Left Control honks, H cycles the headlights. Look down from the driver's seat and
 the two dials on the dash read your speed and your tank; the needles are real geometry,
-turned by the protocol every frame. Crouch and right-click the bed for the chest, or press
+turned by the protocol every frame. Right-click the chest in the bed to open it, or press
 the inventory key while riding. Crouch and right-click with a music disc to play it; crouch
 and right-click the dash empty-handed to eject it. Back the rear hitch onto a trailer's
 tongue to tow it.
@@ -41,8 +41,9 @@ back.
 ## How it is made
 
 The truck is a Blockbench project built by hand by nfx -- `devtools/art/preview/trailblazer.bbmodel`,
-his V4 of 2026-09-11: the body with its four wheels in place, its chest modelled in the
-bed and the paint tinted as the game tints it, for looking at in Blockbench -- to the
+his V4 of 2026-09-11: the body with its four wheels in place, a chest modelled in the bed
+where the game draws its own, and the paint tinted as the game tints it, for looking at in
+Blockbench -- to the
 reference Rusty gave: an open-top,
 roll-caged, light-blue Jeep with a seven-slot grille between slatted lamps, black arch
 fenders hugging big treaded tyres, a raked windshield in a silver frame under a flat cage,
@@ -51,8 +52,8 @@ with two dials, a chest in the bed and a hitch. Nothing generates it: change the
 in Blockbench, then run `devtools/art/adopt.py`, which writes:
 
 - `src/main/resources/assets/trailblazer/vanillawheels/mesh/trailblazer.bbmodel`, the
-  body -- everything but the wheels, the modelled chest included, its body faces divided by
-  the preview's tint so the game's paint multiplies back in -- and
+  body -- everything but the wheels and the modelled chest, its body faces divided by the
+  preview's tint so the game's paint multiplies back in -- and
   `trailblazer_wheel.bbmodel`, one wheel moved to the axle's origin: what the game loads,
   as saved.
 - `src/main/resources/data/trailblazer/vanillawheels/vehicle/trailblazer.json`, the
@@ -61,9 +62,9 @@ in Blockbench, then run `devtools/art/adopt.py`, which writes:
   on it), the wheel radius and positions off the wheel folders, the hit boxes off the
   fenders, the collision box as wide as the tub, as long as the body and as tall as the
   hull -- not the cage, windshield or mirrors, which pass through a low canopy -- the
-  dials' pivots, the lamps, the chest region off the `chest_base` cube (the chest itself is
-  modelled; the game's double chest is not drawn), the hitch off the ball and the radio off
-  the dash. The engine, handling, climb, mass and fuel numbers live in the script, for
+  dials' pivots, the lamps, the chest -- the game's double chest of six rows, drawn where the
+  `chest_base` cube stands and scaled to its width -- the hitch off the ball and the radio
+  off the dash. The engine, handling, climb, mass and fuel numbers live in the script, for
   tuning; `climb` is one block, since two-block climbs lurched worst.
 - the lang file.
 

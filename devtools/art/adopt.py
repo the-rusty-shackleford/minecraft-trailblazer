@@ -6,13 +6,14 @@ Run from the repository root:
 
 Reads devtools/art/preview/trailblazer.bbmodel -- nfx's project as saved in Blockbench (his V4 of 2026-09-11) -- and writes:
 
-  src/main/resources/assets/trailblazer/vanillawheels/mesh/trailblazer.bbmodel        the body: everything but the wheels (the chest is modelled, and ships in it)
+  src/main/resources/assets/trailblazer/vanillawheels/mesh/trailblazer.bbmodel        the body: everything but the wheels and the modelled chest
   src/main/resources/assets/trailblazer/vanillawheels/mesh/trailblazer_wheel.bbmodel  one wheel, moved to the origin
   src/main/resources/data/trailblazer/vanillawheels/vehicle/trailblazer.json          the profile, its numbers read off the cubes
   src/main/resources/assets/trailblazer/lang/en_us.json
 
 The preview shows the body tinted as the game paints it, so the body's texels are divided by that tint on the
-way out and the game's paint multiplies back in. Nothing here designs anything: change the truck in Blockbench and run this.
+way out and the game's paint multiplies back in; the chest cubes stay in the preview only, since the game draws
+its own double chest there, scaled to the cube. Nothing here designs anything: change the truck in Blockbench and run this.
 """
 from __future__ import annotations
 
@@ -200,7 +201,8 @@ def main(argv) -> None:
     wheel = [e for e in project["elements"] if in_group(paths.get(e["uuid"], ""), WHEEL_GROUP)]
     chest = [e for e in project["elements"] if in_group(paths.get(e["uuid"], ""), CHEST_GROUP)]
     reference = [e for e in project["elements"] if in_group(paths.get(e["uuid"], ""), "player_reference")]
-    body = [e for e in project["elements"] if e not in wheel and e not in reference and not in_group(paths.get(e["uuid"], ""), "wheels")]
+    # The modelled chest stays in the preview only: the game draws its own double chest in the bed, scaled to the cube.
+    body = [e for e in project["elements"] if e not in wheel and e not in chest and e not in reference and not in_group(paths.get(e["uuid"], ""), "wheels")]
     if any(f.get("texture", 0) != 0 for e in body + wheel for f in e.get("faces", {}).values()):
         raise SystemExit("a face uses a texture other than the first; only textures[0] is shipped")
     painted = [e for e in body if in_group(paths.get(e["uuid"], ""), "body")]
@@ -268,8 +270,10 @@ def main(argv) -> None:
         "climb": 1.0,
         "mass": 1.45,
         "fuel": {"capacity": 24000},
-        # The modelled trunk chest ships in the body, static; the game's double chest is not drawn (the bed is too narrow for it).
-        "storage": {"rows": 6, "region": {"z_max": chest_base["to"][2]}},
+        # The game's double chest, six rows, drawn where the modelled chest stands and as wide as it: the
+        # double chest is two blocks (32 units) wide, so the scale is the chest_base cube's width over 32.
+        "storage": {"chests": [{"at": [0, chest_base["from"][1], (chest_base["from"][2] + chest_base["to"][2]) / 2], "yaw": 180,
+                                "scale": round((chest_base["to"][0] - chest_base["from"][0]) / 32.0, 3), "rows": 6}]},
         # The dials face the driver (-z); needles point up at rest. Seen by the driver, positive about +z is
         # clockwise, so both sweep clockwise from eight o'clock (-120 degrees) through four (+120).
         "gauges": [{"kind": "speed", "part": {"group": "needle_speed"}, "pivot": [speed[0], speed[1], needle_z], "axis": [0, 0, 1], "zero": -2.094, "sweep": 4.189},
@@ -286,7 +290,7 @@ def main(argv) -> None:
     write_json(DATA / "vanillawheels/vehicle/trailblazer.json", profile)
     write_json(ASSETS / "lang/en_us.json", {"vehicle.trailblazer.trailblazer": "Trailblazer"})
     print(f"body {len(body)} cubes ({len(painted)} painted), wheel {len(wheel_cubes)} cubes at radius {wheel_r} up {wheel_up}, "
-          f"chest {len(chest)} cubes in the body; wheels at {[(p[2], -p[0]) for p in positions]}; length {length:.2f} height {height:.2f}")
+          f"chest {len(chest)} cubes left in the preview; wheels at {[(p[2], -p[0]) for p in positions]}; length {length:.2f} height {height:.2f}")
 
 
 if __name__ == "__main__":

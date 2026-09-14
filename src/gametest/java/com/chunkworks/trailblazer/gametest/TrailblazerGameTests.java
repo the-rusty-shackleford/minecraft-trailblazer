@@ -92,7 +92,7 @@ public final class TrailblazerGameTests {
         helper.assertValueEqual(t.seats().size(), 4, "four seats");
         helper.assertValueEqual((int) t.seats().stream().filter(VehicleProfile.Seat::driver).count(), 1, "one driver");
         helper.assertTrue(t.engine().isPresent(), "an engine");
-        helper.assertValueEqual(t.storage().map(VehicleProfile.Storage::rows).orElse(0), 6, "a chest of six rows");
+        helper.assertValueEqual(t.storage().map(s -> s.chests().get(0).rows()).orElse(0), 6, "a chest of six rows");
         helper.assertValueEqual(t.wheels().positions().size(), 4, "four wheels");
         helper.assertValueEqual(t.gauges().size(), 2, "two gauges");
         helper.assertTrue(t.hitch().rear().isPresent(), "a hitch");
