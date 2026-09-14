@@ -94,8 +94,9 @@ hood's and the cage's against the reference's rather than trusting the swatch. T
 windshield that did not meet its frame, the frame that leaned forward, and a whole
 truck lit inside out were each plain in a picture and invisible in the numbers.
 
-Seven gametests on a headless server: the profile is registered as described; the truck
-reaches speed and climbs a one-block step, and a two-block ledge holds it level; runs a
+Eleven gametests on a headless server: the profile is registered as described; the truck
+reaches speed and climbs a one-block step, climbs a hillside of one-block risers head on,
+at an angle, a riser every block and jagged, and a two-block ledge holds it level; runs a
 cow over for the damage its mass and speed say; takes coal; crafts its chassis; takes and
 ejects a disc. The booth
 photographs the truck's side stock and painted red, the view from the driver's seat

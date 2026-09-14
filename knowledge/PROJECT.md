@@ -17,7 +17,7 @@ by `devtools/art/adopt.py` (D-0003).
 
 ## Shape
 
-No Java in the mod. `gametest` is a mod of its own: seven gametests, a photo booth and the
+No Java in the mod. `gametest` is a mod of its own: eleven gametests, a photo booth and the
 playtest. `adopt.py` is the only pipeline: it splits the project by folder, divides the
 body's texels by the preview's tint, moves the wheel to its axle, and writes the profile
 off the cubes.
@@ -26,7 +26,7 @@ off the cubes.
 
 Looking first: renders of the preview through Blockbench's own camera (driven over its
 remote-debugging port) from five angles and close on every joint, compared with the
-reference. Then `./gradlew check`: seven gametests (profile, speed and the one-block step, the two-block wall,
+reference. Then `./gradlew check`: eleven gametests (profile, speed and the one-block step, four hillsides of one-block risers, the two-block wall,
 running a cow over, coal, the chassis recipe, the radio) and the booth under the pack's
 shaders (side stock and red, windshield and dash from the driver's seat at speed, the
 quarters, lamps at night from behind and in front with the beam on the ground).

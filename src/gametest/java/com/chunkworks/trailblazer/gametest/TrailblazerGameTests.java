@@ -132,6 +132,74 @@ public final class TrailblazerGameTests {
         });
     }
 
+    /**
+     * A hillside: one-block risers every {@code spacing} blocks from x = 20, four of them, the full
+     * width; jagged when {@code jag} is set, each riser a block further east on every other row.
+     */
+    private static void layStaircase(GameTestHelper helper, int spacing, boolean jag) {
+        for (int step = 0; step < 4; step++) {
+            for (int z = 0; z < WIDTH; z++) {
+                int from = 20 + spacing * step + (jag && (z & 1) == 1 ? 1 : 0);
+                for (int x = from; x < LENGTH; x++) {
+                    helper.setBlock(new BlockPos(x, FLOOR + step, z), Blocks.STONE);
+                }
+            }
+        }
+    }
+
+    private static void assertUpTheStaircase(GameTestHelper helper, Vehicle v, String how) {
+        double floorY = helper.absoluteVec(new Vec3(0, FLOOR, 0)).y;
+        helper.runAtTickTime(110, () -> {
+            double x = v.getX() - helper.absoluteVec(new Vec3(0, 0, 0)).x;
+            helper.assertTrue(v.getY() > floorY + 3.9, "up all four risers " + how + ": " + (v.getY() - floorY) + " blocks up at x = " + x);
+            helper.assertTrue(x > 28.0, "and on along the top " + how + ": x = " + x);
+            helper.succeed();
+        });
+    }
+
+    @GameTest(template = "runway", timeoutTicks = 200)
+    public void aHillsideOfOneBlockRisersIsClimbedHeadOn(GameTestHelper helper) {
+        layFloor(helper);
+        layStaircase(helper, 2, false);
+        Vehicle v = truck(helper, 4.5, 7.5);
+        v.setScriptedInput(GAS);
+        assertUpTheStaircase(helper, v, "head on");
+    }
+
+    @GameTest(template = "runway", timeoutTicks = 200)
+    public void aHillsideOfOneBlockRisersIsClimbedAtAnAngle(GameTestHelper helper) {
+        layFloor(helper);
+        layStaircase(helper, 2, false);
+        // Fifteen degrees off the risers' normal, so a nose corner meets each riser first (Rusty:
+        // "the car keeps getting stuck on 1 block slopes when approached from angles, with corners
+        // being the most extreme case").
+        Vehicle v = truck(helper, 4.5, 4.0);
+        v.setYRot(-75.0f);
+        v.yRotO = -75.0f;
+        v.setScriptedInput(GAS);
+        assertUpTheStaircase(helper, v, "at fifteen degrees");
+    }
+
+    @GameTest(template = "runway", timeoutTicks = 200)
+    public void aSteepHillsideARiserEveryBlockIsClimbedHeadOn(GameTestHelper helper) {
+        layFloor(helper);
+        layStaircase(helper, 1, false);
+        Vehicle v = truck(helper, 4.5, 7.5);
+        v.setScriptedInput(GAS);
+        assertUpTheStaircase(helper, v, "head on, a riser every block");
+    }
+
+    @GameTest(template = "runway", timeoutTicks = 200)
+    public void aJaggedHillsideIsClimbedAtAnAngle(GameTestHelper helper) {
+        layFloor(helper);
+        layStaircase(helper, 2, true);
+        Vehicle v = truck(helper, 4.5, 3.0);
+        v.setYRot(-70.0f);
+        v.yRotO = -70.0f;
+        v.setScriptedInput(GAS);
+        assertUpTheStaircase(helper, v, "at twenty degrees over jagged risers");
+    }
+
     @GameTest(template = "runway", timeoutTicks = 120)
     public void aTwoBlockLedgeIsAWallToTheTruck(GameTestHelper helper) {
         layFloor(helper);

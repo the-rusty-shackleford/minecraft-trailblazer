@@ -18,6 +18,7 @@
 package com.chunkworks.trailblazer.gametest;
 
 import com.chunkworks.vanillawheels.Vehicle;
+import net.minecraft.client.Camera;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
@@ -44,6 +45,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.RenderFrameEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,7 +63,9 @@ import java.util.function.Consumer;
  * of leaves two blocks over the road, a herd of cows on the road, and an open pad
  * where the script holds a left drift and releases it for the boost. Each
  * tick logs {@code playtest: <who> t=... x= y= z= yaw= v=} (v is the
- * distance moved that tick); a run that stops advancing for two seconds is
+ * distance moved that tick) and every frame logs {@code playtest-frame: <who> t=... f=...
+ * cam=... eye=... dist=...}, the camera against the driver's eye, so a camera that
+ * jumps between frames is a number; a run that stops advancing for two seconds is
  * logged as stuck, photographed, and lifted past the obstacle. Frames go to
  * the run's screenshots folder as {@code playtest-<who>-<tag>.png}. The
  * server's own "moved wrongly" lines land in the same log and carry the same
@@ -115,6 +119,30 @@ public final class TrailblazerPlaytest {
     private static Run[] runs;
     private static int current = 0;
     private static UUID vehicle;
+
+    private static int frame = 0;
+
+    /**
+     * Every frame of a run: where the camera is, where the driver's eye is, and how far apart, so
+     * a frame-to-frame jump of the camera (Rusty: "the screen keeps stuttering as if the camera
+     * keeps glitching perspectives") is a number in the log, not an impression.
+     */
+    @SubscribeEvent
+    public static void onFrame(RenderFrameEvent.Post event) {
+        if (!ACTIVE || phase != Phase.DRIVING || runs == null || current >= runs.length) {
+            return;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.player.getVehicle() == null) {
+            return;
+        }
+        Camera cam = mc.gameRenderer.getMainCamera();
+        float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        Vec3 eye = mc.player.getEyePosition(partial);
+        Vec3 at = cam.getPosition();
+        LOG.info("playtest-frame: {} t={} f={} p={} cam={},{},{} eye={},{},{} dist={} yaw={} pitch={}", runs[current].who, runs[current].tick, frame++, f(partial),
+            f(at.x), f(at.y), f(at.z), f(eye.x), f(eye.y), f(eye.z), f(at.distanceTo(eye)), f(cam.getYRot()), f(cam.getXRot()));
+    }
 
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
