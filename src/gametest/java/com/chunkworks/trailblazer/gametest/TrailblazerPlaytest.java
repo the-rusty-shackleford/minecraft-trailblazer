@@ -97,6 +97,7 @@ public final class TrailblazerPlaytest {
         int tick = 0;
         int drift = -1;        // tick the drift began, -1 before
         int lastShotAt = -1000;
+        boolean shotCanopy = false;
         double bestX = Double.NEGATIVE_INFINITY;
         int bestTick = 0;
         double lastX, lastY, lastZ;
@@ -216,6 +217,11 @@ public final class TrailblazerPlaytest {
             LOG.info("playtest: {} drift released at t={}", run.who, run.tick);
         }
 
+        // One frame under the canopy, where the cage is in the leaves: the camera must not collapse.
+        if (!run.shotCanopy && v.getX() >= 75.0) {
+            run.shotCanopy = true;
+            shoot(mc, "playtest-" + run.who + "-canopy");
+        }
         // Frames: every forty ticks on the course, every ten through the drift.
         int every = sinceDrift >= 0 ? 10 : 40;
         if (run.tick - run.lastShotAt >= every) {
