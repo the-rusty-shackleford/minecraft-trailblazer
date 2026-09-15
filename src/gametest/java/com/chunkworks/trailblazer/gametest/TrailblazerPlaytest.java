@@ -98,6 +98,9 @@ public final class TrailblazerPlaytest {
         final String who;
         final Consumer<ServerPlayer> spawn;
         final CameraType camera;
+        /** The lane's centre z, and whether the script weaves the wheel left and right as it goes. */
+        int laneZ = LANE_Z;
+        boolean weave = false;
         int tick = 0;
         int drift = -1;        // tick the drift began, -1 before
         int lastShotAt = -1000;
@@ -112,8 +115,15 @@ public final class TrailblazerPlaytest {
             this.spawn = spawn;
             this.camera = camera;
         }
+
+        Run onTerrain(boolean weave) {
+            this.laneZ = TERRAIN_Z;
+            this.weave = weave;
+            return this;
+        }
     }
 
+    private static boolean muted = false;
     private static Phase phase = Phase.TITLE;
     private static int wait = 0;
     private static Run[] runs;
@@ -150,6 +160,11 @@ public final class TrailblazerPlaytest {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
+        if (!muted) {
+            // Silent from the first tick, before the title music: Rusty listens to music while these run.
+            mc.options.getSoundSourceOptionInstance(net.minecraft.sounds.SoundSource.MASTER).set(0.0);
+            muted = true;
+        }
         switch (phase) {
             case TITLE -> {
                 if (mc.screen instanceof TitleScreen && mc.getOverlay() == null) {
@@ -164,11 +179,16 @@ public final class TrailblazerPlaytest {
                     phase = Phase.BUILDING;
                     mc.options.hideGui = true;
                     mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
-                    runs = new Run[] {
+                    // -Dtrailblazer.playtest.runs=terrain,terrain-weave picks runs by name; all of them otherwise.
+                    String only = System.getProperty("trailblazer.playtest.runs", "");
+                    java.util.List<String> names = only.isEmpty() ? java.util.List.of() : java.util.List.of(only.split(","));
+                    runs = java.util.Arrays.stream(new Run[] {
                         new Run("trailblazer", TrailblazerPlaytest::spawnTruck, CameraType.THIRD_PERSON_BACK),
                         new Run("trailblazer-eyes", TrailblazerPlaytest::spawnTruck, CameraType.FIRST_PERSON),
                         new Run("automobility", TrailblazerPlaytest::spawnAutomobile, CameraType.THIRD_PERSON_BACK),
-                    };
+                        new Run("terrain", TrailblazerPlaytest::spawnTruckOnTerrain, CameraType.THIRD_PERSON_BACK).onTerrain(false),
+                        new Run("terrain-weave", TrailblazerPlaytest::spawnTruckOnTerrain, CameraType.THIRD_PERSON_BACK).onTerrain(true),
+                    }).filter(r -> names.isEmpty() || names.contains(r.who)).toArray(Run[]::new);
                     onServer(mc, TrailblazerPlaytest::build);
                     wait = 100;
                 }
@@ -225,7 +245,9 @@ public final class TrailblazerPlaytest {
             look(mc, run.camera == CameraType.FIRST_PERSON ? 4.0f : 12.0f);
         }
         double moved = Math.sqrt(Math.pow(v.getX() - run.lastX, 2) + Math.pow(v.getY() - run.lastY, 2) + Math.pow(v.getZ() - run.lastZ, 2));
-        String extra = v instanceof Vehicle vw ? " burn=" + f(vw.burn()) + " drifting=" + vw.drifting() + " pitch=" + f(Math.toDegrees(vw.suspension(1.0f).pitch())) : "";
+        int steerIn = (mc.options.keyLeft.isDown() ? 1 : 0) - (mc.options.keyRight.isDown() ? 1 : 0);
+        String extra = v instanceof Vehicle vw ? " burn=" + f(vw.burn()) + " drifting=" + vw.drifting() + " pitch=" + f(Math.toDegrees(vw.suspension(1.0f).pitch()))
+                + " roll=" + f(Math.toDegrees(vw.suspension(1.0f).roll())) + " steerIn=" + steerIn + " steer=" + f(vw.steer()) + " kept=" + f(vw.moveKept()) : "";
         LOG.info("playtest: {} t={} x={} y={} z={} yaw={} v={} ground={}{}", run.who, run.tick, f(v.getX()), f(v.getY()), f(v.getZ()), f(v.getYRot()), f(moved), v.onGround(), extra);
         run.lastX = v.getX();
         run.lastY = v.getY();
@@ -239,7 +261,16 @@ public final class TrailblazerPlaytest {
         }
         int sinceDrift = run.drift < 0 ? -1 : run.tick - run.drift;
         mc.options.keyUp.setDown(true);
-        mc.options.keyLeft.setDown(sinceDrift >= 0 && sinceDrift < 50);
+        if (run.weave && run.drift < 0 && v.getX() >= 10.0) {
+            // The weave: six ticks left, six right, over and over -- a zig-zag about the lane's
+            // heading, so every riser is met at an angle and the wheel is always being turned.
+            boolean left = (run.tick / 6) % 2 == 0;
+            mc.options.keyLeft.setDown(left);
+            mc.options.keyRight.setDown(!left);
+        } else {
+            mc.options.keyLeft.setDown(sinceDrift >= 0 && sinceDrift < 50);
+            mc.options.keyRight.setDown(false);
+        }
         mc.options.keyJump.setDown(sinceDrift >= 0 && sinceDrift < 50);
         if (sinceDrift == 50) {
             LOG.info("playtest: {} drift released at t={}", run.who, run.tick);
@@ -270,7 +301,8 @@ public final class TrailblazerPlaytest {
                 onServer(mc, sp -> {
                     Entity sv = sp.serverLevel().getEntity(vehicle);
                     if (sv != null) {
-                        sv.teleportTo(toX, surface(sp.serverLevel(), (int) toX) + 1.0, LANE_Z + 0.5);
+                        int top = run.laneZ == TERRAIN_Z ? sp.serverLevel().getMinBuildHeight() + 3 + rugged((int) toX, run.laneZ) : surface(sp.serverLevel(), (int) toX);
+                        sv.teleportTo(toX, top + 1.0, run.laneZ + 0.5);
                     }
                 });
                 run.bestX = toX;
@@ -279,7 +311,7 @@ public final class TrailblazerPlaytest {
         }
 
         run.tick++;
-        if (sinceDrift >= 90 || run.tick > 1200 || v.getX() > LENGTH - 6) {
+        if (sinceDrift >= 90 || run.tick > 1200 || v.getX() > LENGTH - 6 || Math.abs(v.getZ() - (run.laneZ + 0.5)) > HALF_T + 2) {
             finishRun(mc);
         }
     }
@@ -396,6 +428,35 @@ public final class TrailblazerPlaytest {
         return 0;                           // the two-block drop
     }
 
+    /** The rugged lane: its centre z, its half width. */
+    private static final int TERRAIN_Z = LANE_Z + 24;
+    private static final int HALF_T = 7;
+
+    /**
+     * The rugged lane's top solid block at (x, z), over the base: flat to x = 12; a hillside of
+     * one-block risers every two blocks whose riser lines run thirty degrees off the lane, four
+     * up; a jagged descent, three blocks a riser with a bump on every third column; a field of
+     * single raised blocks; a one-block ridge crossing at forty-five degrees, twice; a stair a
+     * riser every block, four up and four down; a checkerboard of two-by-two moguls; a flat
+     * run-out. What the driver's world is made of, and what the road was not.
+     */
+    static int rugged(int x, int z) {
+        int dz = z - TERRAIN_Z;
+        if (x < 12) return 0;
+        if (x < 30) return Math.min(4, Math.max(0, (int) Math.floor((x - 12 + dz * 0.6) / 2.0)));
+        if (x < 44) return Math.max(0, 4 - (x - 30) / 3) + (Math.floorMod(x + dz, 3) == 0 ? 1 : 0);
+        if (x < 60) return Math.floorMod(x * 7 + dz * 13, 5) == 0 ? 1 : 0;
+        if (x < 78) {
+            int d = x + dz - 60;
+            return (d >= 2 && d < 5) || (d >= 10 && d < 13) ? 1 : 0;
+        }
+        if (x < 82) return x - 77;
+        if (x < 86) return 4;
+        if (x < 90) return 89 - x;
+        if (x < 118) return Math.floorMod(x / 2 + Math.floorDiv(dz, 2), 2);
+        return 0;
+    }
+
     /** The y of the road's top solid block at x (a half step leaves a slab on it). */
     private static int surface(ServerLevel level, int x) {
         return level.getMinBuildHeight() + 3 + halves(x) / 2;
@@ -426,6 +487,19 @@ public final class TrailblazerPlaytest {
                 }
             }
         }
+        // The rugged lane beside the road.
+        for (int x = -4; x < LENGTH + 4; x++) {
+            for (int z = TERRAIN_Z - HALF_T - 2; z <= TERRAIN_Z + HALF_T + 2; z++) {
+                int top = base + rugged(x, z);
+                level.setBlockAndUpdate(new BlockPos(x, base - 1, z), Blocks.STONE.defaultBlockState());
+                for (int y = base; y <= top; y++) {
+                    level.setBlockAndUpdate(new BlockPos(x, y, z), Blocks.STONE.defaultBlockState());
+                }
+                for (int y = top + 1; y <= base + 8; y++) {
+                    level.setBlockAndUpdate(new BlockPos(x, y, z), Blocks.AIR.defaultBlockState());
+                }
+            }
+        }
         // The herd, no minds of their own, across the lane.
         int[][] herd = {{86, -3}, {87, 1}, {89, -1}, {90, 3}, {92, 0}, {93, -2}, {95, 2}, {96, -3}};
         for (int[] at : herd) {
@@ -445,6 +519,19 @@ public final class TrailblazerPlaytest {
     private static void spawnTruck(ServerPlayer sp) {
         ServerLevel level = sp.serverLevel();
         Vehicle v = Vehicle.create(level, TRUCK, new Vec3(START_X + 2.5, surface(level, START_X) + 1.0, LANE_Z + 0.5), -90.0f);
+        if (v == null) {
+            LOG.error("playtest: the Trailblazer profile is registered -- Vehicle.create returned null");
+            return;
+        }
+        v.setFuel(v.tank().capacity());
+        level.addFreshEntity(v);
+        vehicle = v.getUUID();
+    }
+
+    private static void spawnTruckOnTerrain(ServerPlayer sp) {
+        ServerLevel level = sp.serverLevel();
+        int base = level.getMinBuildHeight() + 3;
+        Vehicle v = Vehicle.create(level, TRUCK, new Vec3(START_X + 2.5, base + rugged(START_X, TERRAIN_Z) + 1.0, TERRAIN_Z + 0.5), -90.0f);
         if (v == null) {
             LOG.error("playtest: the Trailblazer profile is registered -- Vehicle.create returned null");
             return;

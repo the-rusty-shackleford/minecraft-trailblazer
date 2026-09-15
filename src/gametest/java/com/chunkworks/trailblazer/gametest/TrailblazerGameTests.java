@@ -245,16 +245,24 @@ public final class TrailblazerGameTests {
     }
 
     @GameTest(template = "arena", timeoutTicks = 60)
-    public void coalFillsTheTankTheGaugeReads(GameTestHelper helper) {
+    public void aGasCanFillsTheTankTheGaugeReads(GameTestHelper helper) {
         Vehicle v = Vehicle.create(helper.getLevel(), TRUCK, helper.absoluteVec(new Vec3(7.5, 1, 7.5)), 0.0f);
         helper.getLevel().addFreshEntity(v);
         helper.assertValueEqual(v.tank().ticks(), 0, "empty to begin with");
+        // The protocol's gas can, held at the truck from a block off its nose, pours a can's worth; the gauge reads it.
         Player p = helper.makeMockPlayer(GameType.SURVIVAL);
-        p.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.COAL, 3));
-        v.interact(p, InteractionHand.MAIN_HAND);
-        helper.assertValueEqual(v.tank().ticks(), 1600, "a coal's burn");
-        helper.assertTrue(Math.abs(v.fuelFraction() - 1600.0 / 24000.0) < 1e-9, "the gauge reads it: " + v.fuelFraction());
-        helper.assertValueEqual(p.getMainHandItem().getCount(), 2, "one coal taken");
+        ItemStack can = new ItemStack(com.chunkworks.vanillawheels.ModContent.GAS_CAN.get());
+        p.setItemInHand(InteractionHand.MAIN_HAND, can);
+        Vec3 nose = v.position().add(v.rotate(new com.chunkworks.vanillawheels.domain.Vec(0, 0.5, v.profile().body().length() / 2.0 + 1.0)));
+        p.setPos(nose.x, nose.y - p.getEyeHeight() + 0.5, nose.z);
+        p.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES, v.position().add(0, 0.7, 0));
+        helper.assertTrue(com.chunkworks.vanillawheels.GasCanItem.aimedAt(p) == v, "the can is aimed at the truck");
+        helper.assertTrue(can.getItem().use(helper.getLevel(), p, InteractionHand.MAIN_HAND).getResult().consumesAction(), "the can starts pouring");
+        for (int i = 0; i < 10; i++) {
+            can.getItem().onUseTick(helper.getLevel(), p, can, 72000 - i);
+        }
+        helper.assertValueEqual(v.tank().ticks(), 10 * com.chunkworks.vanillawheels.GasCanItem.POUR_PER_TICK, "ten ticks of pouring");
+        helper.assertTrue(Math.abs(v.fuelFraction() - 2000.0 / 24000.0) < 1e-9, "the gauge reads it: " + v.fuelFraction());
         helper.succeed();
     }
 

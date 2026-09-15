@@ -16,8 +16,9 @@ documented there.
   coal through Metals and Materials). The chassis item names the Trailblazer.
 - **Build**: put the chassis, four wheels and an engine in a Mechanic Lift and press Build;
   the truck appears on the deck facing the front. Paint it there with a dye.
-- **Fuel**: right-click with anything a furnace burns. The tank holds 24 000 burn ticks,
-  fifteen coal; the fuel gauge shows it.
+- **Fuel**: hold right-click at the truck with Vanilla Wheels' gas can and it pours, a
+  full can filling the tank in six seconds; the fuel gauge shows it. A creative driver
+  needs none.
 - **Pick up**: crouch and right-click with the wrench.
 
 ## Driving it
@@ -97,7 +98,7 @@ truck lit inside out were each plain in a picture and invisible in the numbers.
 Eleven gametests on a headless server: the profile is registered as described; the truck
 reaches speed and climbs a one-block step, climbs a hillside of one-block risers head on,
 at an angle, a riser every block and jagged, and a two-block ledge holds it level; runs a
-cow over for the damage its mass and speed say; takes coal; crafts its chassis; takes and
+cow over for the damage its mass and speed say; takes the gas can; crafts its chassis; takes and
 ejects a disc. The booth
 photographs the truck's side stock and painted red, the view from the driver's seat
 straight ahead and down at the dash at speed on half a tank (the needles off their
@@ -115,9 +116,16 @@ of half steps up two blocks and down, a ramp up a two-block ledge and a cliff of
 canopy of leaves two blocks over the road, a herd of cows on the road, and an open pad --
 and drives it three times under one script from the driver's client: the truck seen from
 behind, the truck through the driver's eyes, and an Automobility steel motorcar; then
-sends a truck with a villager aboard up the first ramp under the server's own throttle,
-watched side-on, for the body's pitch and the rider's lean. Every tick logs
-`playtest: <who> t= x= y= z= yaw= v= ground= burn= drifting= pitch=`; frames land in
+drives the truck twice down a rugged lane beside the road -- a hillside of one-block
+risers at thirty degrees, a jagged descent, a field of single raised blocks, ridges
+crossing at forty-five degrees, a stair a riser every block, a checkerboard of moguls --
+once straight and once weaving the wheel six ticks each way, for the stalls and the lost
+turns rough ground once gave; then sends a truck with a villager aboard up the first ramp
+under the server's own throttle, watched side-on, for the body's pitch and the rider's
+lean. `-PplaytestRuns=terrain,terrain-weave` replays only the runs named. Every tick logs
+`playtest: <who> t= x= y= z= yaw= v= ground= burn= drifting= pitch= roll= steerIn= steer=
+kept=` (kept: the share of the move the world let through) and every frame the camera
+against the driver's eye; frames land in
 `run/playtest/screenshots/` every forty ticks and every ten through the drift; a run that
 stops advancing is logged `STUCK` and lifted on. The server's own `moved wrongly` lines
 land in the same log, so `grep -c` of them is the count of moves the server refused. The

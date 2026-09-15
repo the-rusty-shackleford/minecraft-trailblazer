@@ -86,6 +86,7 @@ public final class TrailblazerBooth {
     /** The night truck stands further out, nose away, so its beams pool in the sampled rows. */
     private static final double NIGHT_AHEAD = 10.0;
 
+    private static boolean muted = false;
     private static Phase phase = Phase.TITLE;
     private static int tick = 0;
     private static List<Step> steps;
@@ -98,6 +99,11 @@ public final class TrailblazerBooth {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
+        if (!muted) {
+            // Silent from the first tick, before the title music: Rusty listens to music while these run.
+            mc.options.getSoundSourceOptionInstance(net.minecraft.sounds.SoundSource.MASTER).set(0.0);
+            muted = true;
+        }
         switch (phase) {
             case TITLE -> {
                 if (mc.screen instanceof TitleScreen && mc.getOverlay() == null) {
