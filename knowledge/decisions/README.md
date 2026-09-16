@@ -15,3 +15,4 @@ tags: [index]
 | D-0001 | The cab repair is a scripted edit of the bundle, not a re-export and not a runtime fix |
 | D-0002 | The truck is designed as a Blockbench project in code, to the reference, and reviewed as renders (supersedes D-0001) |
 | D-0003 | The hand-built Blockbench project is the truck; `adopt.py` splits it and reads the profile off it (supersedes D-0002) |
+| D-0004 | The playtest must finish drift release and boost before claiming a complete comparison |

@@ -150,6 +150,18 @@ dependencies {
     gametestImplementation sourceSets.main.output
 }
 
+// A normal client exit proves nothing about whether the driving script finished.
+tasks.named('runPlaytest') {
+    def logFile = layout.projectDirectory.file('run/playtest/logs/latest.log').asFile
+    doLast {
+        def text = logFile.exists() ? logFile.text : ''
+        def failures = text.readLines().findAll { it.contains('playtest: FAIL') }
+        if (!text.contains('playtest: done') || !failures.isEmpty()) {
+            throw new GradleException("playtest did not complete successfully: " + failures.join('\n'))
+        }
+    }
+}
+
 tasks.named('runGameTestServer') { task ->
     def logFile = layout.projectDirectory.file('run/logs/latest.log').asFile
     task.doLast {
@@ -171,6 +183,7 @@ if (!project.hasProperty('skipGameTests')) {
 }
 
 tasks.named('runPhotoBooth') { task ->
+    mustRunAfter 'runPlaytest'
     def logFile = layout.projectDirectory.file('run/booth/logs/latest.log').asFile
     task.doLast {
         def text = logFile.exists() ? logFile.text : ''
@@ -181,8 +194,8 @@ tasks.named('runPhotoBooth') { task ->
         if (!failures.isEmpty()) {
             throw new GradleException("booth: ${failures.size()} failed check(s):\n" + failures.join('\n'))
         }
-        if (!(text =~ /booth: PASS/)) {
-            throw new GradleException("booth: no verdict in ${logFile} -- the booth never ran")
+        if (!text.contains('booth: PASS all checks ran')) {
+            throw new GradleException("booth: missing completion verdict in ${logFile}")
         }
         task.logger.lifecycle("booth: " + (text =~ /booth: PASS.*/)[0])
     }

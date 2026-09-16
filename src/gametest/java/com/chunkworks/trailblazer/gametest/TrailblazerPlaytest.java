@@ -109,6 +109,8 @@ public final class TrailblazerPlaytest {
         int bestTick = 0;
         double lastX, lastY, lastZ;
         boolean done = false;
+        boolean released = false;
+        boolean boosted = false;
 
         Run(String who, Consumer<ServerPlayer> spawn, CameraType camera) {
             this.who = who;
@@ -181,7 +183,7 @@ public final class TrailblazerPlaytest {
                     mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
                     // -Dtrailblazer.playtest.runs=terrain,terrain-weave picks runs by name; all of them otherwise.
                     String only = System.getProperty("trailblazer.playtest.runs", "");
-                    java.util.List<String> names = only.isEmpty() ? java.util.List.of() : java.util.List.of(only.split(","));
+                    java.util.List<String> names = only.isEmpty() ? java.util.List.of() : java.util.List.of(only.split(",", -1));
                     runs = java.util.Arrays.stream(new Run[] {
                         new Run("trailblazer", TrailblazerPlaytest::spawnTruck, CameraType.THIRD_PERSON_BACK),
                         new Run("trailblazer-eyes", TrailblazerPlaytest::spawnTruck, CameraType.FIRST_PERSON),
@@ -189,6 +191,12 @@ public final class TrailblazerPlaytest {
                         new Run("terrain", TrailblazerPlaytest::spawnTruckOnTerrain, CameraType.THIRD_PERSON_BACK).onTerrain(false),
                         new Run("terrain-weave", TrailblazerPlaytest::spawnTruckOnTerrain, CameraType.THIRD_PERSON_BACK).onTerrain(true),
                     }).filter(r -> names.isEmpty() || names.contains(r.who)).toArray(Run[]::new);
+                    if (runs.length == 0 || names.stream().anyMatch(name -> java.util.Arrays.stream(runs).noneMatch(run -> run.who.equals(name)))) {
+                        LOG.error("playtest: FAIL unknown run selection {}", only);
+                        phase = Phase.DONE;
+                        mc.stop();
+                        return;
+                    }
                     onServer(mc, TrailblazerPlaytest::build);
                     wait = 100;
                 }
@@ -246,9 +254,10 @@ public final class TrailblazerPlaytest {
         }
         double moved = Math.sqrt(Math.pow(v.getX() - run.lastX, 2) + Math.pow(v.getY() - run.lastY, 2) + Math.pow(v.getZ() - run.lastZ, 2));
         int steerIn = (mc.options.keyLeft.isDown() ? 1 : 0) - (mc.options.keyRight.isDown() ? 1 : 0);
-        String extra = v instanceof Vehicle vw ? " burn=" + f(vw.burn()) + " drifting=" + vw.drifting() + " pitch=" + f(Math.toDegrees(vw.suspension(1.0f).pitch()))
+        String extra = v instanceof Vehicle vw ? " driveSpeed=" + f(vw.speed()) + " burn=" + f(vw.burn()) + " drifting=" + vw.drifting() + " pitch=" + f(Math.toDegrees(vw.suspension(1.0f).pitch()))
                 + " roll=" + f(Math.toDegrees(vw.suspension(1.0f).roll())) + " steerIn=" + steerIn + " steer=" + f(vw.steer()) + " kept=" + f(vw.moveKept()) : "";
         LOG.info("playtest: {} t={} x={} y={} z={} yaw={} v={} ground={}{}", run.who, run.tick, f(v.getX()), f(v.getY()), f(v.getZ()), f(v.getYRot()), f(moved), v.onGround(), extra);
+        if (v instanceof Vehicle vw && vw.burn() > 0) run.boosted = true;
         run.lastX = v.getX();
         run.lastY = v.getY();
         run.lastZ = v.getZ();
@@ -273,6 +282,7 @@ public final class TrailblazerPlaytest {
         }
         mc.options.keyJump.setDown(sinceDrift >= 0 && sinceDrift < 50);
         if (sinceDrift == 50) {
+            run.released = true;
             LOG.info("playtest: {} drift released at t={}", run.who, run.tick);
         }
 
@@ -311,7 +321,8 @@ public final class TrailblazerPlaytest {
         }
 
         run.tick++;
-        if (sinceDrift >= 90 || run.tick > 1200 || v.getX() > LENGTH - 6 || Math.abs(v.getZ() - (run.laneZ + 0.5)) > HALF_T + 2) {
+        if (sinceDrift >= 90 || run.tick > 1200 || (run.drift < 0
+                && (v.getX() > LENGTH - 6 || Math.abs(v.getZ() - (run.laneZ + 0.5)) > HALF_T + 2))) {
             finishRun(mc);
         }
     }
@@ -375,8 +386,13 @@ public final class TrailblazerPlaytest {
         Run run = runs[current];
         mc.options.keyUp.setDown(false);
         mc.options.keyLeft.setDown(false);
+        mc.options.keyRight.setDown(false);
         mc.options.keyJump.setDown(false);
         LOG.info("playtest: {} ends at t={}", run.who, run.tick);
+        if (!run.who.equals("automobility")) {
+            if (run.released && run.boosted) LOG.info("playtest: PASS {} completed drift release and boost", run.who);
+            else LOG.error("playtest: FAIL {} incomplete drift: release={} boost={}", run.who, run.released, run.boosted);
+        }
         run.done = true;
         onServer(mc, sp -> {
             sp.stopRiding();
@@ -430,7 +446,9 @@ public final class TrailblazerPlaytest {
 
     /** The rugged lane: its centre z, its half width. */
     private static final int TERRAIN_Z = LANE_Z + 24;
-    private static final int HALF_T = 7;
+    // The open-loop weave gradually wanders sideways. Keep the entire sampled
+    // route on rugged ground; the old seven-block half-width ended it before the pad.
+    private static final int HALF_T = 20;
 
     /**
      * The rugged lane's top solid block at (x, z), over the base: flat to x = 12; a hillside of

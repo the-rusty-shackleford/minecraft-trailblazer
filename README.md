@@ -134,6 +134,23 @@ folder from `-PautomobilityJar=` (default `../tools/playtest/`). Read the number
 (the two drifts' yaw a tick, the boost's speed and how long it holds, the refusals), then
 the frames.
 
+The 2026-09-16 held-version comparison keeps the existing driving tune. The rugged
+straight and weaving runs had a median 0.891 blocks per tick of movement; all
+four Trailblazer runs reached drift release and recorded 40 boost ticks at a maximum
+engine speed of 1.158 blocks per tick. There were no stuck reports or server move
+rejections. The weave’s eight pauses in yaw change were airborne, with none while
+grounded. These are scripted course measurements, not a substitute for subjective
+steering or speed preferences.
+
+The playtest now keeps the weave on a wider rugged lane and lets a drift finish beyond
+the road boundaries. It fails a missing release/boost or unfinished script, rejects
+unknown run names, and logs engine speed separately from distance moved. Run a focused
+comparison with `./gradlew runPlaytest -PplaytestRuns=terrain,terrain-weave`; run the
+photo booth separately after the client exits. The booth requires its completion
+marker and checks shaded paint by hue, with the stock frame as a negative control.
+See D-0004 for the reproduced gaps in
+the older course. nfx’s model and all production tuning remain unchanged.
+
 ## Licence
 
 AGPL-3.0-or-later. Copyright 2026 Rusty Shackleford and nfx.

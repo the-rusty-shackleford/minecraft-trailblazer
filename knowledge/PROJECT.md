@@ -66,3 +66,17 @@ profile on Rusty's call for nfx's view.
 
 Next: the tuning session -- top speed, drift, run-over damage, the dial size and the seat
 position are numbers to watch in the booth with Rusty, not to plan.
+
+2026-09-16, held work verified: the old course prematurely ended drift and left the
+rugged weave before the pad. D-0004 repairs the harness and pins completion. All four
+Trailblazer runs then completed release and forty boost ticks at up to 1.158 blocks/tick;
+no stuck reports or server move rejections. The rough course median was 0.891 blocks/tick,
+with no ignored steering while grounded. Existing tuning, client authority, server
+collision and nfx’s supplied model remain unchanged. Subjective speed, drift, rider and
+dashboard preferences remain Rusty’s review of the captured baseline; releases stay held.
+
+The shader photo booth passed all twelve visual/seat/light assertions and its final
+completion marker after separating shaded body hue from bright dashboard needles.
+The malformed run selection `terrain,` was rejected by the real client and Gradle
+with a nonzero exit, as intended. Both the focused valid weave and final complete five-run comparison passed the same
+gate; the final comparison reproduced the recorded metrics exactly.

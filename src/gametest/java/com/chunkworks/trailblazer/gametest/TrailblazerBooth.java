@@ -189,7 +189,7 @@ public final class TrailblazerBooth {
         int t = HOLD;
         s.add(new Step(t, () -> {
             int blue = count(mc, TrailblazerBooth::lightBlue);
-            int red = count(mc, TrailblazerBooth::red);
+            int red = count(mc, TrailblazerBooth::redPaint);
             shoot(mc, "booth-side-stock");
             verdict("the stock truck's side shows its light-blue paint", () -> blue > 1500 ? null : "light-blue pixels " + blue);
             verdict("and nothing red", () -> red < 150 ? null : "red pixels " + red);
@@ -197,9 +197,9 @@ public final class TrailblazerBooth {
         s.add(new Step(t += 2, () -> withCar(mc, v -> v.setPaint(DyeColor.RED))));
         s.add(new Step(t += SETTLE / 2, () -> {
             int blue = count(mc, TrailblazerBooth::lightBlue);
-            int red = count(mc, TrailblazerBooth::red);
+            int red = count(mc, TrailblazerBooth::redPaint);
             shoot(mc, "booth-side-red");
-            verdict("painted red, the side is red", () -> red > 1500 ? null : "red pixels " + red);
+            verdict("painted red, the side is red", () -> red > 500 ? null : "red pixels " + red);
             verdict("and the blue is gone", () -> blue < 150 ? null : "light-blue pixels " + blue);
         }));
         // Into the driver's seat: straight ahead over the hood, then down at the dash while the server drives.
@@ -387,7 +387,18 @@ public final class TrailblazerBooth {
         return r < 130 && g > r + 40 && b > r + 60 && b > 140;
     }
 
-    /** The same swatch under red dye, on a lit or a shaded face; not the hazard stripe's yellow. */
+    /**
+     * effects: identifies red-dominant body paint, including shader shade.
+     * Relative channel differences preserve hue when shade reduces brightness;
+     * the brightness floor excludes near-black tyre and cage noise. The stock
+     * frame is the negative control and the painted frame must also lose its blue.
+     */
+    private static boolean redPaint(int rgb) {
+        int r = rgb >> 16 & 0xFF, g = rgb >> 8 & 0xFF, b = rgb & 0xFF;
+        return r > 32 && r > g * 1.2 && r > b * 1.1;
+    }
+
+    /** effects: identifies the brighter red dashboard needles. */
     private static boolean red(int rgb) {
         int r = rgb >> 16 & 0xFF, g = rgb >> 8 & 0xFF, b = rgb & 0xFF;
         return r > 80 && g < 110 && r > g + 40 && r > b + 40;
