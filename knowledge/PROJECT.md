@@ -112,3 +112,17 @@ collision and moving-light changes ship in the shared libraries.
 Independent driver/observer multiplayer, the historical live movement-warning route,
 and representative 4–8-player tracking/DH capacity remain open follow-ups. Local tests
 do not establish those results. Release authorization does not claim those checks passed.
+
+## Published release — 2026-09-17
+
+[Version 1.7.0](https://github.com/the-rusty-shackleford/minecraft-trailblazer/releases/tag/v1.7.0) is published and deployed in pack 1.36.0.
+The coordinated set passed 96 JUnit tests, 59 real-server GameTests and all five
+Iris/Complementary booths on clean release builds. Downloaded release assets match
+the validated jars; nested dependencies are the exact newly built artifacts.
+The three cosmetic vehicle profiles remain identical to their preserved references.
+
+Both pack archives were verified against the source. Deployment occurred with zero
+players online; installed server hashes match, and Mod Hub reports pack parity.
+The initial empty-server sample was 20 TPS. Startup retained the same 36 pre-existing
+third-party error messages, with none added. This does not close the multiplayer,
+historical movement-warning or representative capacity follow-ups above.
