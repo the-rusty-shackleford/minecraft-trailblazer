@@ -1,19 +1,9 @@
-"""Adopts the hand-built Blockbench project as the truck: splits it into what the game loads, and writes the profile.
+"""Import the approved cosmetic Blockbench derivative without changing gameplay.
 
-Run from the repository root:
-
-    uv run --no-project python devtools/art/adopt.py
-
-Reads devtools/art/preview/trailblazer.bbmodel -- nfx's project as saved in Blockbench (his V4 of 2026-09-11) -- and writes:
-
-  src/main/resources/assets/trailblazer/vanillawheels/mesh/trailblazer.bbmodel        the body: everything but the wheels and the modelled chest
-  src/main/resources/assets/trailblazer/vanillawheels/mesh/trailblazer_wheel.bbmodel  one wheel, moved to the origin
-  src/main/resources/data/trailblazer/vanillawheels/vehicle/trailblazer.json          the profile, its numbers read off the cubes
-  src/main/resources/assets/trailblazer/lang/en_us.json
-
-The preview shows the body tinted as the game paints it, so the body's texels are divided by that tint on the
-way out and the game's paint multiplies back in; the chest cubes stay in the preview only, since the game draws
-its own double chest there, scaled to the cube. Nothing here designs anything: change the truck in Blockbench and run this.
+Run with --appearance-only. The released profile and original model are retained in
+reference/. The profile is checked before import and is never regenerated from artwork.
+This preserves nfx's rig and the existing gameplay while allowing deliberate art edits.
+Copyright 2026 Rusty Shackleford and nfx. SPDX-License-Identifier: AGPL-3.0-or-later.
 """
 from __future__ import annotations
 
@@ -23,6 +13,8 @@ import struct
 import sys
 import zlib
 from pathlib import Path
+
+from appearance import require_appearance_only, uv_bounds
 
 ROOT = Path(__file__).resolve().parents[2]
 MODID = "trailblazer"
@@ -134,8 +126,9 @@ def bounds(elements):
 
 def moved(e, d):
     out = dict(e)
-    out["from"] = [a - b for a, b in zip(e["from"], d)]
-    out["to"] = [a - b for a, b in zip(e["to"], d)]
+    if e.get("type", "cube") == "cube":
+        out["from"] = [a - b for a, b in zip(e["from"], d)]
+        out["to"] = [a - b for a, b in zip(e["to"], d)]
     if "origin" in e:
         out["origin"] = [a - b for a, b in zip(e["origin"], d)]
     return out
@@ -176,11 +169,11 @@ def untinted(project, rows, w, h, body_elements):
     out = [list(r) for r in rows]
     for e in body_elements:
         for f in e.get("faces", {}).values():
-            u0, v0, u1, v1 = f["uv"]
+            u0, v0, u1, v1 = uv_bounds(f["uv"])
             for y in range(int(min(v0, v1)), int(max(v0, v1))):
                 for x in range(int(min(u0, u1)), int(max(u0, u1))):
                     if 0 <= x < w and 0 <= y < h:
-                        r, g, b, a = out[y][x]
+                        r, g, b, a = rows[y][x]
                         out[y][x] = (min(255, round(r * 255 / PREVIEW_TINT[0])), min(255, round(g * 255 / PREVIEW_TINT[1])),
                                      min(255, round(b * 255 / PREVIEW_TINT[2])), a)
     return out
@@ -192,6 +185,9 @@ def write_json(path: Path, data) -> None:
 
 
 def main(argv) -> None:
+    profile_path = DATA / "vanillawheels/vehicle/trailblazer.json"
+    profile_bytes = require_appearance_only(profile_path, ROOT / "devtools/art/reference/released-profile.json")
+    profile = json.loads(profile_bytes)
     project = json.loads(PREVIEW.read_text(encoding="utf-8"))
     paths = group_paths(project)
     by_name = {e["name"]: e for e in project["elements"]}
@@ -209,7 +205,7 @@ def main(argv) -> None:
 
     # The wheel: its cubes share an origin at the axle; move them so the axle is the origin.
     axle = wheel[0]["origin"]
-    wheel_r = round(max(e["to"][1] - axle[1] for e in wheel), 1)
+    wheel_r = profile["wheels"]["radius"]
     wheel_up = axle[1]
     wheel_cubes = [moved(e, axle) for e in wheel]
 
@@ -217,80 +213,8 @@ def main(argv) -> None:
     write_json(ASSETS / "vanillawheels/mesh/trailblazer.bbmodel", subproject(project, "trailblazer", body, body_png))
     write_json(ASSETS / "vanillawheels/mesh/trailblazer_wheel.bbmodel", subproject(project, "trailblazer_wheel", wheel_cubes, png))
 
-    # The profile, off the cubes.
-    wheels = {}
-    for e in project["elements"]:
-        p = paths.get(e["uuid"], "")
-        for part in p.split("/"):
-            if part.startswith("wheel_") and part != "wheels":
-                wheels[part] = e["origin"]
-    positions = sorted(wheels.values(), key=lambda o: (-o[2], o[0]))
-    lens = [centre(by_name[n]) for n in ("lens_left", "lens_right")]
-    lens_z = max(by_name["lens_left"]["to"][2], by_name["lens_right"]["to"][2])
-    speed = centre(by_name["dial_speed"])
-    fuel = centre(by_name["dial_fuel"])
-    needle_z = centre(by_name["needle_speed"])[2]
-    hitch = centre(by_name["hitch_ball"])
-    chest_base = by_name["chest_base"]
-    front_seat = centre(by_name["cushion_front_left"])
-    rear_seat = centre(by_name["cushion_rear_left"])
-    tub_lo, tub_hi = bounds([e for e in body if in_group(paths.get(e["uuid"], ""), "tub")])
-    fender_lo, fender_hi = bounds([e for e in body if in_group(paths.get(e["uuid"], ""), "fenders")])
-    dash_lo, dash_hi = bounds([e for e in body if in_group(paths.get(e["uuid"], ""), "dash")])
-    body_lo, body_hi = bounds(body)
-    length = (body_hi[2] - body_lo[2]) / 16.0
-    # The box the world collides with stands as tall as the hull -- tub, bonnet, fenders, doors, dash --
-    # and not the cage, windshield or mirrors above it, which pass through a low canopy as a cage would
-    # push through leaves; a truck stopped dead by every tree is no fun to drive.
-    ABOVE_HULL = ("cage", "windshield_frame", "windshield", "mirrors", "seats")
-    hull = [e for e in body if not any(in_group(paths.get(e["uuid"], ""), g) for g in ABOVE_HULL)]
-    hull_lo, hull_hi = bounds(hull)
-    height = hull_hi[1] / 16.0
-    seat_y = round(by_name["cushion_front_left"]["to"][1] + SEAT_LIFT, 1)
-    # The wheel arches, as hit boxes: one per axle, the fenders' width and height, standing on the fenders' floor.
-    arch = {"width": round((fender_hi[0] - fender_lo[0]) / 16.0, 2), "height": round((fender_hi[1] - fender_lo[1]) / 16.0, 2)}
-    profile = {
-        "mesh": "trailblazer:trailblazer",
-        "wheel_mesh": "trailblazer:trailblazer_wheel",
-        "scale": 0.0625,
-        "handedness": "right",
-        "body": {"width": round((tub_hi[0] - tub_lo[0]) / 16.0, 2), "length": round(length, 2), "height": round(height, 2),
-                 "parts": [{"at": [0, round(fender_lo[1], 1), round(positions[0][2], 1)], **arch},
-                           {"at": [0, round(fender_lo[1], 1), round(positions[2][2], 1)], **arch}]},
-        "seats": [{"at": [front_seat[0], seat_y, front_seat[2]], "driver": True}, {"at": [-front_seat[0], seat_y, front_seat[2]]},
-                  {"at": [rear_seat[0], seat_y, rear_seat[2]]}, {"at": [-rear_seat[0], seat_y, rear_seat[2]]}],
-        "wheels": {"radius": wheel_r, "positions": [
-            {"forward": positions[0][2], "right": -positions[0][0], "up": wheel_up, "steers": True},
-            {"forward": positions[1][2], "right": -positions[1][0], "up": wheel_up, "steers": True},
-            {"forward": positions[2][2], "right": -positions[2][0], "up": wheel_up},
-            {"forward": positions[3][2], "right": -positions[3][0], "up": wheel_up}]},
-        "engine": {"max_speed": 0.9, "acceleration": 0.02, "reverse_speed": 0.3, "brake": 0.05, "drag": 0.01},
-        "handling": {"grip": 0.85, "steer_degrees": 32, "drift_grip": 0.12, "drift_boost": 0.3, "drift_charge_ticks": 40},
-        # One block: a two-block climb produced the largest lurches (nfx); two-block ledges are walls, use ramps.
-        "climb": 1.0,
-        "mass": 1.45,
-        "fuel": {"capacity": 24000},
-        # The game's double chest, six rows, drawn where the modelled chest stands and as wide as it: the
-        # double chest is two blocks (32 units) wide, so the scale is the chest_base cube's width over 32.
-        "storage": {"chests": [{"at": [0, chest_base["from"][1], (chest_base["from"][2] + chest_base["to"][2]) / 2], "yaw": 180,
-                                "scale": round((chest_base["to"][0] - chest_base["from"][0]) / 32.0, 3), "rows": 6}]},
-        # The dials face the driver (-z); needles point up at rest. Seen by the driver, positive about +z is
-        # clockwise, so both sweep clockwise from eight o'clock (-120 degrees) through four (+120).
-        "gauges": [{"kind": "speed", "part": {"group": "needle_speed"}, "pivot": [speed[0], speed[1], needle_z], "axis": [0, 0, 1], "zero": -2.094, "sweep": 4.189},
-                   {"kind": "fuel", "part": {"group": "needle_fuel"}, "pivot": [fuel[0], fuel[1], needle_z], "axis": [0, 0, 1], "zero": -2.094, "sweep": 4.189}],
-        "headlights": {"at": [[lens[0][0], lens[0][1], lens_z + 0.5], [lens[1][0], lens[1][1], lens_z + 0.5]], "part": {"group": "lenses"}, "range": 10},
-        "horn": "vanillawheels:horn.truck",
-        # The radio sits on the passenger's side of the dash top.
-        "radio": {"at": [round(dash_lo[0] / 2, 1), round(dash_hi[1], 1), round((dash_lo[2] + dash_hi[2]) / 2, 1)]},
-        "hitch": {"rear": [0, hitch[1], by_name["hitch_ball"]["from"][2]]},
-        "paint": {"part": {"group": "body"}, "default": "light_blue", "factory": FACTORY},
-        "glass": {"group": "windshield"},
-        "sounds": {"engine": "vanillawheels:engine.petrol"},
-    }
-    write_json(DATA / "vanillawheels/vehicle/trailblazer.json", profile)
-    write_json(ASSETS / "lang/en_us.json", {"vehicle.trailblazer.trailblazer": "Trailblazer"})
-    print(f"body {len(body)} cubes ({len(painted)} painted), wheel {len(wheel_cubes)} cubes at radius {wheel_r} up {wheel_up}, "
-          f"chest {len(chest)} cubes left in the preview; wheels at {[(p[2], -p[0]) for p in positions]}; length {length:.2f} height {height:.2f}")
+    assert profile_path.read_bytes() == profile_bytes
+    print(f"appearance-only: {len(body)} body elements, {len(wheel_cubes)} wheel elements; gameplay profile unchanged")
 
 
 if __name__ == "__main__":

@@ -56,6 +56,7 @@ var prepareBooth = tasks.register("prepareBooth") {
 var preparePlaytest = tasks.register("preparePlaytest") {
     def dir = layout.projectDirectory.dir('run/playtest').asFile
     def jar = file(project.findProperty('automobilityJar') ?: '../tools/playtest/automobility-0.5.0.h+1.21.1-neoforge.jar')
+    def pickupJar = project.hasProperty('playtestPickupJar') ? file(project.property('playtestPickupJar')) : null
     doLast {
         new File(dir, 'screenshots').deleteDir()
         new File(dir, 'saves').deleteDir()
@@ -65,6 +66,10 @@ var preparePlaytest = tasks.register("preparePlaytest") {
             throw new GradleException("playtest: no Automobility jar at ${jar}; pass -PautomobilityJar=")
         }
         new File(mods, jar.name).bytes = jar.bytes
+        if (pickupJar != null) {
+            if (!pickupJar.exists()) throw new GradleException("playtest: pickup jar missing: ${pickupJar}")
+            new File(mods, pickupJar.name).bytes = pickupJar.bytes
+        }
         def options = new File(dir, 'options.txt')
         if (!options.exists()) {
             options.text = 'onboardAccessibility:false\ntutorialStep:none\nskipMultiplayerWarning:true\njoinedFirstServer:true\nfov:0.0\nrenderDistance:8\nhideGui:true\n'
@@ -106,6 +111,7 @@ neoForge {
             sourceSet = sourceSets.gametest
             gameDirectory = file('run/playtest')
             systemProperty "${mod_id}.playtest", 'true'
+            systemProperty "${mod_id}.playtest.night", project.hasProperty('playtestNight').toString()
             // -PplaytestRuns=terrain,terrain-weave replays only those runs.
             systemProperty "${mod_id}.playtest.runs", (project.findProperty('playtestRuns') ?: '')
             taskBefore preparePlaytest
@@ -142,8 +148,8 @@ dependencies {
     // keeps one copy of each across the pack.
     jarJar(implementation("com.chunkworks.vanillawheels:vanillawheels")) {
         version {
-            strictly "[1.5,2.0)"
-            prefer "1.6.0"
+            strictly "[1.7,2.0)"
+            prefer "1.7.0"
         }
     }
 

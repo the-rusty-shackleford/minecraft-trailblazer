@@ -78,6 +78,7 @@ public final class TrailblazerPlaytest {
 
     private static final Logger LOG = LoggerFactory.getLogger("Trailblazer playtest");
     private static final boolean ACTIVE = Boolean.getBoolean("trailblazer.playtest");
+    private static final boolean NIGHT = Boolean.getBoolean("trailblazer.playtest.night");
     private static final ResourceLocation TRUCK = ResourceLocation.fromNamespaceAndPath("trailblazer", "trailblazer");
     private static final String AUTOMOBILE = "automobility:automobile";
     private static final String AUTOMOBILE_NBT = "{frame:\"automobility:steel_motorcar\",wheels:\"automobility:standard\",engine:\"automobility:iron\"}";
@@ -90,6 +91,10 @@ public final class TrailblazerPlaytest {
     /** Where the script begins the drift on the open pad. */
     private static final int PAD_X = 104;
     private static final int STUCK_TICKS = 40;
+    private static final int IMPACT_Z = 128;
+    private static UUID impactTarget;
+    private static double impactTargetStart;
+    private static boolean impactPushed;
 
     private enum Phase { TITLE, LOADING, BUILDING, DRIVING, WATCHING, DONE }
 
@@ -133,6 +138,8 @@ public final class TrailblazerPlaytest {
     private static UUID vehicle;
 
     private static int frame = 0;
+    private static long lastFrameNanos;
+    private static final java.util.ArrayList<Double> frameMillis = new java.util.ArrayList<>();
 
     /**
      * Every frame of a run: where the camera is, where the driver's eye is, and how far apart, so
@@ -148,6 +155,9 @@ public final class TrailblazerPlaytest {
         if (mc.player == null || mc.player.getVehicle() == null) {
             return;
         }
+        long now = System.nanoTime();
+        if (lastFrameNanos != 0) frameMillis.add((now - lastFrameNanos) / 1_000_000.0);
+        lastFrameNanos = now;
         Camera cam = mc.gameRenderer.getMainCamera();
         float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
         Vec3 eye = mc.player.getEyePosition(partial);
@@ -190,7 +200,10 @@ public final class TrailblazerPlaytest {
                         new Run("automobility", TrailblazerPlaytest::spawnAutomobile, CameraType.THIRD_PERSON_BACK),
                         new Run("terrain", TrailblazerPlaytest::spawnTruckOnTerrain, CameraType.THIRD_PERSON_BACK).onTerrain(false),
                         new Run("terrain-weave", TrailblazerPlaytest::spawnTruckOnTerrain, CameraType.THIRD_PERSON_BACK).onTerrain(true),
-                    }).filter(r -> names.isEmpty() || names.contains(r.who)).toArray(Run[]::new);
+                        new Run("impacts", TrailblazerPlaytest::spawnImpactCourse, CameraType.THIRD_PERSON_BACK),
+                        new Run("pickup", sp -> spawnVehicle(sp, ResourceLocation.fromNamespaceAndPath("farmpickup", "pickup"), false), CameraType.THIRD_PERSON_BACK),
+                        new Run("pickup-weave", sp -> spawnVehicle(sp, ResourceLocation.fromNamespaceAndPath("farmpickup", "pickup"), true), CameraType.THIRD_PERSON_BACK).onTerrain(true),
+                    }).filter(r -> names.isEmpty() ? !r.who.startsWith("pickup") && !r.who.equals("impacts") : names.contains(r.who)).toArray(Run[]::new);
                     if (runs.length == 0 || names.stream().anyMatch(name -> java.util.Arrays.stream(runs).noneMatch(run -> run.who.equals(name)))) {
                         LOG.error("playtest: FAIL unknown run selection {}", only);
                         phase = Phase.DONE;
@@ -219,6 +232,8 @@ public final class TrailblazerPlaytest {
         }
         Run run = runs[current];
         vehicle = null;
+        lastFrameNanos = 0;
+        frameMillis.clear();
         mc.options.setCameraType(run.camera);
         onServer(mc, sp -> {
             run.spawn.accept(sp);
@@ -261,6 +276,33 @@ public final class TrailblazerPlaytest {
         run.lastX = v.getX();
         run.lastY = v.getY();
         run.lastZ = v.getZ();
+
+        if (run.who.equals("impacts")) {
+            mc.options.keyUp.setDown(true);
+            mc.options.keyLeft.setDown(false); mc.options.keyRight.setDown(false); mc.options.keyJump.setDown(false);
+            if (run.tick % 40 == 0) shoot(mc, "playtest-impacts-t" + run.tick);
+            if (run.tick == 120) onServer(mc, sp -> {
+                Entity target = sp.serverLevel().getEntity(impactTarget);
+                impactPushed = target != null && target.getX() > impactTargetStart + .5;
+                LOG.info("playtest-impact: parked vehicle displaced={}", target == null ? "missing" : f(target.getX()-impactTargetStart));
+                // End this contact partition before the same driver's block-collision partition.
+                if (target != null) target.discard();
+            });
+            if (++run.tick >= 500) {
+                onServer(mc, sp -> {
+                    Entity target = sp.serverLevel().getEntity(impactTarget);
+                    Entity driven = sp.serverLevel().getEntity(vehicle);
+                    boolean pushed = impactPushed;
+                    boolean cleared = driven != null && driven.getX() > 55;
+                    boolean stopped = driven != null && driven.getX() < 90;
+                    LOG.info("playtest: {} impacts pushed={} clearedGlass={} stoppedAtStone={}",
+                            pushed && cleared && stopped ? "PASS" : "FAIL", pushed, cleared, stopped);
+                    if (target != null) target.discard();
+                });
+                finishRun(mc);
+            }
+            return;
+        }
 
         // The keys: gas all the way; on the pad, a left drift for fifty ticks then the release.
         boolean onPad = v.getX() >= PAD_X;
@@ -348,6 +390,7 @@ public final class TrailblazerPlaytest {
                 return;
             }
             v.setFuel(v.tank().capacity());
+        if (NIGHT) v.cycleLights();
             level.addFreshEntity(v);
             net.minecraft.world.entity.npc.Villager rider = EntityType.VILLAGER.create(level);
             if (rider != null) {
@@ -389,9 +432,16 @@ public final class TrailblazerPlaytest {
         mc.options.keyRight.setDown(false);
         mc.options.keyJump.setDown(false);
         LOG.info("playtest: {} ends at t={}", run.who, run.tick);
-        if (!run.who.equals("automobility")) {
+        if (!run.who.equals("automobility") && !run.who.equals("impacts")) {
             if (run.released && run.boosted) LOG.info("playtest: PASS {} completed drift release and boost", run.who);
             else LOG.error("playtest: FAIL {} incomplete drift: release={} boost={}", run.who, run.released, run.boosted);
+        }
+        if (!frameMillis.isEmpty()) {
+            frameMillis.sort(Double::compare);
+            double mean = frameMillis.stream().mapToDouble(Double::doubleValue).average().orElse(0);
+            LOG.info("playtest-performance: {} frames={} meanMs={} p95Ms={} p99Ms={}", run.who, frameMillis.size(),
+                    f(mean), f(frameMillis.get((int) Math.floor((frameMillis.size()-1)*.95))),
+                    f(frameMillis.get((int) Math.floor((frameMillis.size()-1)*.99))));
         }
         run.done = true;
         onServer(mc, sp -> {
@@ -483,7 +533,7 @@ public final class TrailblazerPlaytest {
     /** effects: lays the course on the server and puts the driver at its start */
     private static void build(ServerPlayer sp) {
         ServerLevel level = sp.serverLevel();
-        level.setDayTime(6000L);
+        level.setDayTime(NIGHT ? 18000L : 6000L);
         int base = level.getMinBuildHeight() + 3;
         for (int x = -4; x < LENGTH + 4; x++) {
             int top = surface(level, x);
@@ -534,6 +584,37 @@ public final class TrailblazerPlaytest {
         LOG.info("playtest: course built, the road's top block at y={}", base);
     }
 
+    private static void spawnImpactCourse(ServerPlayer sp) {
+        ServerLevel level = sp.serverLevel();
+        int floor = level.getMinBuildHeight() + 3;
+        for (int x = 0; x < 110; x++) for (int z = IMPACT_Z-8; z <= IMPACT_Z+8; z++) {
+            level.setBlockAndUpdate(new BlockPos(x,floor,z),Blocks.STONE.defaultBlockState());
+        }
+        for (int z = IMPACT_Z-5; z <= IMPACT_Z+5; z++) for (int y = floor+1; y <= floor+4; y++) {
+            level.setBlockAndUpdate(new BlockPos(50,y,z),Blocks.GLASS.defaultBlockState());
+            level.setBlockAndUpdate(new BlockPos(90,y,z),Blocks.STONE.defaultBlockState());
+        }
+        Vehicle driven = Vehicle.create(level,TRUCK,new Vec3(4.5,floor+1,IMPACT_Z+.5),-90);
+        Vehicle target = Vehicle.create(level,TRUCK,new Vec3(30.5,floor+1,IMPACT_Z+.5),-90);
+        if (driven == null || target == null) { LOG.error("playtest: FAIL impact profile missing"); return; }
+        driven.setFuel(driven.tank().capacity()); if (NIGHT) driven.cycleLights();
+        level.addFreshEntity(driven); level.addFreshEntity(target);
+        vehicle=driven.getUUID(); impactTarget=target.getUUID(); impactTargetStart=target.getX(); impactPushed=false;
+        sp.teleportTo(level,4.5,floor+1,IMPACT_Z+.5,-90,12);
+    }
+
+    private static void spawnVehicle(ServerPlayer sp, ResourceLocation profile, boolean terrain) {
+        ServerLevel level = sp.serverLevel();
+        int z = terrain ? TERRAIN_Z : LANE_Z;
+        int top = terrain ? level.getMinBuildHeight() + 3 + rugged(START_X, z) : surface(level, START_X);
+        Vehicle v = Vehicle.create(level, profile, new Vec3(START_X + 2.5, top + 1, z + .5), -90);
+        if (v == null) { LOG.error("playtest: FAIL missing profile {}", profile); return; }
+        v.setFuel(v.tank().capacity());
+        if (NIGHT) v.cycleLights();
+        level.addFreshEntity(v);
+        vehicle = v.getUUID();
+    }
+
     private static void spawnTruck(ServerPlayer sp) {
         ServerLevel level = sp.serverLevel();
         Vehicle v = Vehicle.create(level, TRUCK, new Vec3(START_X + 2.5, surface(level, START_X) + 1.0, LANE_Z + 0.5), -90.0f);
@@ -542,6 +623,7 @@ public final class TrailblazerPlaytest {
             return;
         }
         v.setFuel(v.tank().capacity());
+        if (NIGHT) v.cycleLights();
         level.addFreshEntity(v);
         vehicle = v.getUUID();
     }
@@ -555,6 +637,7 @@ public final class TrailblazerPlaytest {
             return;
         }
         v.setFuel(v.tank().capacity());
+        if (NIGHT) v.cycleLights();
         level.addFreshEntity(v);
         vehicle = v.getUUID();
     }
