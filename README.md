@@ -155,3 +155,9 @@ fixture dependency, not shipped content. Each run rejects failure or incomplete 
 Fixture-only `run/playtest/options.txt` controls distance trials; personal options do
 not belong in distributed packs. A GPU frame-time result on this isolated course does
 not establish multiplayer tracking, network cost or server generation capacity.
+
+## Shared materials dependency
+
+Version 1.7.1 bundles Vanilla Wheels 1.7.2, which requires Metals and Materials
+as a separately installed mod on both client and server. Mod Hub includes it
+in our pack. Vehicle profiles, models, recipes and handling are unchanged.

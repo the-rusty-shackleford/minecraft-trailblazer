@@ -144,12 +144,12 @@ configurations {
 
 dependencies {
     // The protocol: everything this vehicle does. Nested Jar-in-Jar, with
-    // what it nests in turn (Luminance, Metals and Materials); the loader
-    // keeps one copy of each across the pack.
+    // its bundled Luminance dependency. Metals and Materials is required
+    // separately through the protocol; no materials jar is embedded.
     jarJar(implementation("com.chunkworks.vanillawheels:vanillawheels")) {
         version {
             strictly "[1.7,2.0)"
-            prefer "1.7.0"
+            prefer "1.7.2"
         }
     }
 

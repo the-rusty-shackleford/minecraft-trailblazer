@@ -126,3 +126,13 @@ players online; installed server hashes match, and Mod Hub reports pack parity.
 The initial empty-server sample was 20 TPS. Startup retained the same 36 pre-existing
 third-party error messages, with none added. This does not close the multiplayer,
 historical movement-warning or representative capacity follow-ups above.
+
+## Shared materials dependency — 2026-09-18, unreleased
+
+Version 1.7.1 rebuilds with Vanilla Wheels 1.7.2 to remove the indirectly bundled
+Metals and Materials jar, following Vanilla Wheels D-0013 and Rusty's "Proceed."
+Metals and Materials is installed separately on both sides. Models, recipes and
+profiles are unchanged. Unit/server checks, recursive jar/payload audits and complete-pack startup passed; release is held.
+
+Validation: see Metals and Materials `devtools/verification/separate-dependency.md`;
+all six packaging builds and the complete-pack client/server check passed.
