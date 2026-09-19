@@ -152,3 +152,16 @@ Version 1.8.0 is authorized for public source/jar publication and deployment
 in pack 1.47.0, superseding the earlier local-review and dependency-packaging holds.
 Clean release builds, exact jar checks, staged pack comparison and an empty-server
 restart gate deployment. The other vehicle mods are updated together for protocol 5.
+
+## Published and deployed — 2026-09-19
+
+Rusty explicitly approved public publication for all five coordinated releases.
+Version 1.8.0 is published on GitHub and deployed in pack 1.47.0.
+Clean release checks passed: 88 shared domain tests, 81 real-server GameTests
+across the release set, and all four shader client booths. Downloaded release
+assets match the tested builds; installed server jars match those assets.
+All five loaded versions were confirmed after an empty-server restart; Mod Hub
+reports pack/server parity and RCON measured 20 TPS. The client and server packs
+change only the five mod downloads and version label; shared preferences are
+preserved. Rusty imports the client update in Prism for multiplayer playtesting.
+The earlier release holds above are superseded.
