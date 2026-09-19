@@ -144,3 +144,11 @@ Version 1.8.0 implements [D-0006](decisions/D-0006.md) with Vanilla Wheels
 The shared protocol preserves cargo, damage, fuel and paint when packing vehicles,
 and provides paired-key recall including a currently hitched trailer. This remains
 unreleased, alongside the earlier separate-materials packaging change.
+
+## Release authorization — 2026-09-19
+
+Rusty explicitly requested: "Deploy it all so I can test that stuff."
+Version 1.8.0 is authorized for public source/jar publication and deployment
+in pack 1.47.0, superseding the earlier local-review and dependency-packaging holds.
+Clean release builds, exact jar checks, staged pack comparison and an empty-server
+restart gate deployment. The other vehicle mods are updated together for protocol 5.

@@ -162,7 +162,7 @@ Version 1.7.1 bundles Vanilla Wheels 1.7.2, which requires Metals and Materials
 as a separately installed mod on both client and server. Mod Hub includes it
 in our pack. Vehicle profiles, models, recipes and handling are unchanged.
 
-## Repairs and recovery (1.8.0, local review)
+## Repairs and recovery (1.8.0)
 
 Broken vehicles become packed items at zero condition, preserving cargo, paint,
 fuel and radio discs. Wrench pickup also preserves cargo and wear. Place a damaged
@@ -180,4 +180,4 @@ cannot duplicate an item someone already collected. A trailer detached by breaki
 or wrenching is a separate vehicle.
 
 Requires matching Vanilla Wheels 1.8.0 / protocol 5 on client and server.
-This candidate has not been published or deployed.
+Update the full pack on both sides before connecting.
