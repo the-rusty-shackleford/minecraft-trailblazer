@@ -79,7 +79,10 @@ def require_appearance_only(profile: Path, reference: Path) -> bytes:
             "Use --appearance-only. Cosmetic imports must not regenerate gameplay profiles."
         )
     before = profile.read_bytes()
-    if json.loads(before) != json.loads(reference.read_bytes()):
+    current = json.loads(before)
+    repair = current.pop("repair", None)
+    approved_repair = json.loads(reference.with_name("repair-policy.json").read_bytes())
+    if current != json.loads(reference.read_bytes()) or repair != approved_repair:
         raise SystemExit(
             "Gameplay profile differs from the released contract; review it separately before importing art."
         )

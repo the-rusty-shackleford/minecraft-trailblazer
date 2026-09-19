@@ -161,3 +161,23 @@ not establish multiplayer tracking, network cost or server generation capacity.
 Version 1.7.1 bundles Vanilla Wheels 1.7.2, which requires Metals and Materials
 as a separately installed mod on both client and server. Mod Hub includes it
 in our pack. Vehicle profiles, models, recipes and handling are unchanged.
+
+## Repairs and recovery (1.8.0, local review)
+
+Broken vehicles become packed items at zero condition, preserving cargo, paint,
+fuel and radio discs. Wrench pickup also preserves cargo and wear. Place a damaged
+vehicle on the Mechanic Lift to reveal Repair; a full repair costs **20 steel
+ingots**, with cheaper proportional repairs rounded up. Creative needs no materials.
+
+Use a Vehicle Key Fob on a motor vehicle to pair it. Hold use in air to preview the
+fuel bill and recall it together with its currently hitched trailer. The farther
+it is, the higher the bill (5% of a full tank at 1,000 blocks; 20% at 2,000).
+Missing fuel becomes half as much condition loss. Cargo stays intact even if recall
+returns a wreck. Unload passengers and animals, close vehicle chests, and leave room
+in inventory. One active pairing per player; a replacement fob invalidates the old.
+The fob can recover a paired physical wreck, including from an unloaded chunk, but
+cannot duplicate an item someone already collected. A trailer detached by breaking
+or wrenching is a separate vehicle.
+
+Requires matching Vanilla Wheels 1.8.0 / protocol 5 on client and server.
+This candidate has not been published or deployed.

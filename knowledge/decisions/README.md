@@ -17,3 +17,5 @@ tags: [index]
 | D-0003 | The hand-built Blockbench project is the truck; `adopt.py` splits it and reads the profile off it (supersedes D-0002) |
 | D-0004 | The playtest must finish drift release and boost before claiming a complete comparison |
 | D-0005 | Approved cosmetic derivative; appearance-only imports preserve the released gameplay profile (partially supersedes D-0003) |
+
+- [D-0006](D-0006.md): Approved repair cost and shared vehicle recovery.
