@@ -19,7 +19,9 @@ documented there.
 - **Fuel**: hold right-click at the truck with Vanilla Wheels' gas can and it pours, a
   full can filling the tank in six seconds; the fuel gauge shows it. A creative driver
   needs none.
-- **Pick up**: crouch and right-click with the wrench.
+- **Pick up**: right-click it with a crowbar, crouching or not. It has its own, in its toolbox:
+  crouch and right-click the body empty-handed to open it (Vanilla Wheels 1.10.0, its D-0020 and
+  D-0023).
 
 ## Driving it
 
@@ -165,7 +167,7 @@ in our pack. Vehicle profiles, models, recipes and handling are unchanged.
 ## Repairs and recovery (1.8.0)
 
 Broken vehicles become packed items at zero condition, preserving cargo, paint,
-fuel and radio discs. Wrench pickup also preserves cargo and wear. Place a damaged
+fuel and radio discs. Crowbar pickup also preserves cargo and wear; a player's blow does not wear it. Place a damaged
 vehicle on the Mechanic Lift to reveal Repair; a full repair costs **20 steel
 ingots**, with cheaper proportional repairs rounded up. Creative needs no materials.
 
@@ -177,7 +179,7 @@ returns a wreck. Unload passengers and animals, close vehicle chests, and leave 
 in inventory. One active pairing per player; a replacement fob invalidates the old.
 The fob can recover a paired physical wreck, including from an unloaded chunk, but
 cannot duplicate an item someone already collected. A trailer detached by breaking
-or wrenching is a separate vehicle.
+or prying loose is a separate vehicle.
 
 Requires matching Vanilla Wheels 1.8.0 / protocol 5 on client and server.
 Update the full pack on both sides before connecting.
