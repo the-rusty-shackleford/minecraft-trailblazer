@@ -19,9 +19,11 @@ documented there.
 - **Fuel**: hold right-click at the truck with Vanilla Wheels' gas can and it pours, a
   full can filling the tank in six seconds; the fuel gauge shows it. A creative driver
   needs none.
-- **Pick up**: right-click it with a crowbar, crouching or not. It has its own, in its toolbox:
-  crouch and right-click the body empty-handed to open it (Vanilla Wheels 1.10.0, its D-0020 and
-  D-0023).
+- **Pick up**: punch it six times in a row and it packs into your inventory as it is, cargo,
+  fuel and wear included; a truck paired to a key packs only for its owner (Vanilla Wheels 1.10.0, its D-0025).
+- **Repair by hand**: right-click it damaged and it is repaired 2.5% a click for hunger, no
+  materials; a full rebuild from a wreck costs 5 food points (2½ drumsticks). Whole, the click does what it
+  always did (D-0025).
 
 ## Driving it
 
@@ -167,8 +169,8 @@ in our pack. Vehicle profiles, models, recipes and handling are unchanged.
 ## Repairs and recovery (1.8.0)
 
 Broken vehicles become packed items at zero condition, preserving cargo, paint,
-fuel and radio discs. Crowbar pickup also preserves cargo and wear; a player's blow does not wear it. Place a damaged
-vehicle on the Mechanic Lift to reveal Repair; a full repair costs **20 steel
+fuel and radio discs. Packing it up with punches also preserves cargo and wear; a punch is a knock, not wear.
+Repair it by hand (above), or place a damaged vehicle on the Mechanic Lift to reveal Repair; a full repair costs **20 steel
 ingots**, with cheaper proportional repairs rounded up. Creative needs no materials.
 
 Use a Vehicle Key Fob on a motor vehicle to pair it. Hold use in air to preview the
@@ -176,10 +178,12 @@ fuel bill and recall it together with its currently hitched trailer. The farther
 it is, the higher the bill (5% of a full tank at 1,000 blocks; 20% at 2,000).
 Missing fuel becomes half as much condition loss. Cargo stays intact even if recall
 returns a wreck. Unload passengers and animals, close vehicle chests, and leave room
-in inventory. One active pairing per player; a replacement fob invalidates the old.
+in inventory. One key per vehicle, named for it and banded in its paint, and a paired key
+never leaves its owner (Vanilla Wheels D-0026); a blank key used in the air replaces one
+that is gone, and the lost one stops working.
 The fob can recover a paired physical wreck, including from an unloaded chunk, but
 cannot duplicate an item someone already collected. A trailer detached by breaking
-or prying loose is a separate vehicle.
+or packing up is a separate vehicle.
 
 Requires matching Vanilla Wheels 1.8.0 / protocol 5 on client and server.
 Update the full pack on both sides before connecting.
