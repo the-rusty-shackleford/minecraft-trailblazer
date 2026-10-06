@@ -1,0 +1,11 @@
+{
+  "shots": [
+    {"from": "run/booth/screenshots/booth-three-quarter.png", "to": "img/trailblazer.webp"},
+    {"from": "run/booth/screenshots/booth-side-red.png", "to": "img/painted.webp"},
+    {"from": "run/booth/screenshots/booth-bed.png", "to": "img/bed.webp"},
+    {"from": "run/booth/screenshots/booth-windshield.png", "to": "img/windshield.webp"},
+    {"from": "run/playtest/screenshots/playtest-trailblazer-canopy.png", "to": "img/canopy.webp"},
+    {"from": "run/playtest/screenshots/playtest-trailblazer-t0210-x100.png", "to": "img/boost.webp"},
+    {"from": "run/booth/screenshots/booth-night-lamps-on.png", "to": "img/night.webp"}
+  ]
+}
