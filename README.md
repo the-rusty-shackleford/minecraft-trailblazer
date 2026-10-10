@@ -24,6 +24,9 @@ documented there.
 - **Repair by hand**: right-click it damaged and it is repaired 2.5% a click for hunger, no
   materials; a full rebuild from a wreck costs 5 food points (2½ drumsticks). Whole, the click does what it
   always did (D-0025).
+- **Durability 8** (Vanilla Wheels 1.14.0, its D-0034): a blow wears the truck an eighth of what it
+  wears a boat; seven pistol rounds, four rifle rounds, two shotgun shells or two rockets wreck it.
+  Needs Vanilla Wheels 1.14.0, which it nests.
 
 ## Driving it
 

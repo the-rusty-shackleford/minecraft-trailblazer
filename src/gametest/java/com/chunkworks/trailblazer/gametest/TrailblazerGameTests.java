@@ -90,6 +90,7 @@ public final class TrailblazerGameTests {
         helper.assertTrue(p.isPresent(), "trailblazer:trailblazer is in the vehicle registry");
         VehicleProfile t = p.get();
         helper.assertValueEqual(t.seats().size(), 4, "four seats");
+        helper.assertValueEqual(t.durability(), 8.0, "a truck's durability: seven pistol rounds to a wreck (Vanilla Wheels' D-0034)");
         helper.assertValueEqual((int) t.seats().stream().filter(VehicleProfile.Seat::driver).count(), 1, "one driver");
         helper.assertTrue(t.engine().isPresent(), "an engine");
         helper.assertValueEqual(t.storage().map(s -> s.chests().get(0).rows()).orElse(0), 6, "a chest of six rows");

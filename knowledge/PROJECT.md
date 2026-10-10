@@ -15,6 +15,13 @@ recipe and a lang file, with the protocol nested inside. The truck is an approve
 project `devtools/art/preview/trailblazer.bbmodel`; the meshes are exported from it
 by `devtools/art/adopt.py` (D-0005).
 
+## 1.9.0 — built and gated 2026-10-10, unreleased (durability 8)
+
+Its profile names `durability` 8 (Vanilla Wheels 1.14.0's D-0034): seven pistol rounds, four rifle
+rounds, two shotgun shells or two rockets wreck it, where one did. It nests Vanilla Wheels 1.14.0 (it
+had nested 1.8.0, `prefer` never raised, so the pack's newer copy won at run time). Gate:
+the release gate (2026-10-10, `clean build --no-build-cache`) green with 11 gametests and the booth's 12 checks.
+
 ## Shape
 
 No Java in the shipped mod. The separate gametest source set contains the real-server

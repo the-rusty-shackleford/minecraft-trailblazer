@@ -148,8 +148,8 @@ dependencies {
     // separately through the protocol; no materials jar is embedded.
     jarJar(implementation("com.chunkworks.vanillawheels:vanillawheels")) {
         version {
-            strictly "[1.8,2.0)"
-            prefer "1.8.0"
+            strictly "[1.14,2.0)"
+            prefer "1.14.0"
         }
     }
 
