@@ -15,7 +15,10 @@ recipe and a lang file, with the protocol nested inside. The truck is an approve
 project `devtools/art/preview/trailblazer.bbmodel`; the meshes are exported from it
 by `devtools/art/adopt.py` (D-0005).
 
-## 1.9.0 — built and gated 2026-10-10, unreleased (durability 8)
+## 1.9.0 — released 2026-10-11 in pack 1.82.0 (durability 8)
+
+Released on Rusty's go ("Release the 2026-10-10 batch and Survivalist Armor 0.2.0. This is my go."), tag `v1.9.0` at `07d1c14`, the release gate (2026-10-11, `clean build --no-build-cache`) green again on that commit; sha1 `83605eed` on GitHub and on the server (the server repo's `knowledge/releases/pack-1.82.0.md`). Not yet seen in play on the box.
+
 
 Its profile names `durability` 8 (Vanilla Wheels 1.14.0's D-0034): seven pistol rounds, four rifle
 rounds, two shotgun shells or two rockets wreck it, where one did. It nests Vanilla Wheels 1.14.0 (it
